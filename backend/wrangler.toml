@@ -1,0 +1,8 @@
+# Cloudflare Workers の設定（CLIでデプロイする場合に使う）
+# 管理画面(ダッシュボード)でデプロイするなら、このファイルは不要。
+name = "study-rotation-api"
+main = "worker.js"
+compatibility_date = "2024-09-01"
+
+# 秘密のAPIキーはここには書かない。次のコマンドで登録する:
+#   wrangler secret put YOUTUBE_API_KEY

@@ -137,11 +137,12 @@
 
     <hr class="divider">
     <div class="field">
-      <label>YouTube Data API キー（再生リスト・チャンネルどちらにも必要）</label>
-      <input type="text" id="apiKeyInput" placeholder="AIza... から始まるキー">
-      <div class="note">無料。下の手順どおりに作って、できたキーをここに貼ります。</div>
+      <label>YouTube Data API キー（任意・上級者向け）</label>
+      <input type="text" id="apiKeyInput" placeholder="AIza...（ふつうは空でOK）">
+      <div class="note">ふだんは<b>空のままでOK</b>。共有サーバー経由で動きます。
+        自分のキーを使いたい場合（共有の上限を気にせず使いたい等）だけ入力してください。</div>
       <details class="howto">
-        <summary>▶ APIキーの取り方（5分・初めてでもOK）</summary>
+        <summary>▶ 自分のAPIキーの取り方（任意・5分）</summary>
         <ol>
           <li><a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a> を開いてGoogleでログイン。</li>
           <li>画面上部の<b>プロジェクト選択</b>（左上）→「<b>新しいプロジェクト</b>」→ 名前は何でもOK（例: study）→「作成」。</li>
@@ -252,47 +253,59 @@ function flashSaved() { const m = document.getElementById("savedMsg"); m.style.v
 window.openSettings = openSettings;
 
 // ── YouTube Data API ──
+// 共有バックエンド（Cloudflare Worker のプロキシ）のURL。
+// ここにキーは書かない。キーはサーバー側の秘密として保管される。
+// ※デプロイ後にこの値を自分のWorkerのURLへ差し替える（例: https://study-rotation-api.xxx.workers.dev）
+const API_BASE = "";
+
+// path には key を含めない。自分のキーがあれば直接、無ければ共有サーバー経由で叩く。
 async function ytJson(path) {
-  const res = await fetch(`https://www.googleapis.com/youtube/v3/${path}`);
+  const key = getApiKey();
+  let res;
+  if (key) {
+    res = await fetch(`https://www.googleapis.com/youtube/v3/${path}&key=${key}`);
+  } else if (API_BASE) {
+    res = await fetch(`${API_BASE}/yt?path=${encodeURIComponent(path)}`);
+  } else {
+    throw new Error("動画を取得する準備ができていません。設定で自分のAPIキーを入れるか、しばらく待ってから試してください。");
+  }
   const data = await res.json();
   if (data.error) {
     const reason = (data.error.errors && data.error.errors[0] && data.error.errors[0].reason) || "";
-    if (reason === "quotaExceeded") throw new Error("今日のAPI利用上限に達しました。明日また試してください。");
+    if (reason === "quotaExceeded") throw new Error("今日の利用上限に達しました。明日また試すか、設定で自分のAPIキーを入れてください。");
     if (reason === "keyInvalid" || data.error.code === 400) throw new Error("APIキーが正しくないようです。設定のキーを見直してください。");
     throw new Error(data.error.message || "YouTube API でエラーが出ました。");
   }
   return data;
 }
-async function uploadsFromChannelId(id, key) {
-  const data = await ytJson(`channels?part=contentDetails&id=${id}&key=${key}`);
+async function uploadsFromChannelId(id) {
+  const data = await ytJson(`channels?part=contentDetails&id=${id}`);
   if (!data.items || !data.items[0]) throw new Error("チャンネルIDからチャンネルを取得できませんでした。");
   return data.items[0].contentDetails.relatedPlaylists.uploads;
 }
-async function resolveUploadsPlaylist(url, key) {
+async function resolveUploadsPlaylist(url) {
   const u = String(url).trim();
   let m = u.match(/channel\/(UC[\w-]+)/) || u.match(/^(UC[\w-]+)$/);
-  if (m) return await uploadsFromChannelId(m[1], key);
+  if (m) return await uploadsFromChannelId(m[1]);
   m = u.match(/@([\w.\-]+)/);
-  if (m) { const data = await ytJson(`channels?part=contentDetails&forHandle=${encodeURIComponent(m[1])}&key=${key}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forHandle=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
   m = u.match(/user\/([\w.\-]+)/);
-  if (m) { const data = await ytJson(`channels?part=contentDetails&forUsername=${encodeURIComponent(m[1])}&key=${key}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forUsername=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
   m = u.match(/(?:\/c\/|youtube\.com\/)([^/?#]+)/);
   const q = m ? decodeURIComponent(m[1]) : u;
-  const s = await ytJson(`search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(q)}&key=${key}`);
-  if (s.items && s.items[0]) return await uploadsFromChannelId(s.items[0].id.channelId, key);
+  const s = await ytJson(`search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(q)}`);
+  if (s.items && s.items[0]) return await uploadsFromChannelId(s.items[0].id.channelId);
   throw new Error("チャンネルが見つかりませんでした。チャンネルのURL（…/@名前 や …/channel/UC… の形）を貼ってください。");
 }
 async function fetchVideos(id) {
-  const key = getApiKey();
   const s = subjectById(id);
   if (!s || !s.url) throw new Error("URLが未設定です。設定で貼ってください。");
-  if (!key) throw new Error("APIキーが未設定です。設定の一番下でキーを保存してください。");
   let listId;
-  if (s.type === "channel") listId = await resolveUploadsPlaylist(s.url, key);
+  if (s.type === "channel") listId = await resolveUploadsPlaylist(s.url);
   else { listId = extractListId(s.url); if (!listId) throw new Error("再生リストのURLから list= が読み取れませんでした。"); }
   let videos = [], pageToken = "";
   do {
-    const data = await ytJson(`playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${listId}&key=${key}${pageToken ? "&pageToken=" + pageToken : ""}`);
+    const data = await ytJson(`playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${listId}${pageToken ? "&pageToken=" + pageToken : ""}`);
     for (const it of data.items) videos.push({ id: it.contentDetails.videoId, title: it.snippet.title });
     pageToken = data.nextPageToken || "";
   } while (pageToken);
