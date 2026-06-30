@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>学習ローテーション</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #1a1d27; --panel2: #232735;
+    --text: #e8eaf0; --muted: #9aa0b0; --accent: #5b8cff;
+    --line: #2c3140; --ok: #57d9a3; --warn: #ffb454; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 18px 60px; }
+  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  header.top h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  header.top .date { color: var(--muted); font-size: 13px; }
+
+  .todaybar { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; }
+  .todaybar .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .todaybar .lines { display: flex; flex-direction: column; gap: 6px; }
+  .todaybar .line { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
+  .todaybar .line .tag { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; color: #fff; }
+  .todaybar .stats { margin-top: 12px; font-size: 13px; color: var(--warn); }
+  .todaybar .nextday { margin-top: 6px; font-size: 12px; color: var(--muted); }
+
+  .block { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
+  .blockhead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .badge { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; color: #fff; }
+  .mode { font-size: 13px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .mode.study { border-color: var(--accent); color: var(--accent); }
+
+  .caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; font-size: 14px; }
+  .caption .vtitle { font-weight: 600; }
+  .caption .pos { color: var(--muted); font-size: 13px; white-space: nowrap; }
+  .player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--panel2); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+  .player iframe { width: 100%; height: 100%; border: 0; }
+  .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; color: var(--muted); }
+  .empty .msg { max-width: 480px; }
+
+  .jump { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; color: var(--muted); }
+  .jump input { width: 80px; font: inherit; text-align: center; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .refreshrow { text-align: center; margin-top: 8px; }
+  .refresh { font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px 0; }
+  .refresh:hover { color: var(--accent); }
+
+  .actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 11px 18px; transition: filter .15s; }
+  button:hover { filter: brightness(1.15); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; flex: 1; min-width: 180px; }
+  button.ghost { color: var(--muted); }
+  .jump button { padding: 8px 14px; }
+
+  /* 設定 */
+  details.settings { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 4px 18px; margin-top: 16px; }
+  details.settings summary { cursor: pointer; padding: 14px 0; font-size: 14px; color: var(--muted); list-style: none; }
+  details.settings summary::-webkit-details-marker { display: none; }
+  .field { margin: 0 0 16px; }
+  .field > label { display: block; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+  .field input[type="text"], .field input:not([type]), .field select {
+    width: 100%; font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
+  }
+  .field .note { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .field .note a { color: var(--accent); }
+  .divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
+  .saved { color: var(--ok); font-size: 13px; }
+
+  /* 科目エディタ */
+  .subject { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--bg); }
+  .subrow { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .subject .sname { flex: 1; }
+  .subject .scolor { width: 46px; height: 40px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); flex: none; cursor: pointer; }
+  .subject .stype { flex: 1; }
+  .subject .surl { width: 100%; }
+  .subject .subrow button { padding: 9px 12px; flex: none; }
+  .subject .subrow button[data-act="del"] { color: var(--danger); }
+  .addbtn { width: 100%; border-style: dashed; color: var(--accent); }
+  .bkrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  details.howto { margin-top: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px; }
+  details.howto summary { cursor: pointer; padding: 10px 0; font-size: 13px; color: var(--accent); list-style: none; font-weight: 600; }
+  details.howto summary::-webkit-details-marker { display: none; }
+  details.howto ol { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; }
+  details.howto li { margin-bottom: 8px; }
+  details.howto code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+  details.howto b { color: var(--text); }
+  details.howto a { color: var(--accent); }
+
+  /* スマホ対応 */
+  @media (max-width: 560px) {
+    .wrap { padding: 16px 12px 48px; }
+    header.top h1 { font-size: 16px; }
+    .todaybar, .block { padding: 14px; }
+    .todaybar .line { font-size: 15px; }
+    .caption { flex-direction: column; align-items: flex-start; gap: 2px; }
+    .actions button.primary { min-width: 100%; }
+    .subrow { flex-wrap: wrap; }
+    .subject .stype { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>学習ローテーション</h1>
+    <span class="date" id="dateLabel"></span>
+  </header>
+
+  <section class="todaybar">
+    <div class="label">今日やること</div>
+    <div class="lines" id="todayLines"></div>
+    <div class="stats" id="stats"></div>
+    <div class="nextday" id="nextDay"></div>
+  </section>
+
+  <section class="block" id="reviewBlock"></section>
+  <section class="block" id="studyBlock"></section>
+
+  <div class="actions">
+    <button class="primary" id="doneBtn">完了 → 次の日へ</button>
+    <button class="ghost" id="backBtn">← 前の日</button>
+  </div>
+
+  <details class="settings">
+    <summary>⚙️ 科目・URL・キーの設定</summary>
+
+    <div class="field">
+      <label>科目（上から順にローテーション）</label>
+      <div id="settingsFields"></div>
+      <button id="addSubjectBtn" class="addbtn">＋ 科目を追加</button>
+    </div>
+
+    <hr class="divider">
+    <div class="field">
+      <label>YouTube Data API キー（再生リスト・チャンネルどちらにも必要）</label>
+      <input type="text" id="apiKeyInput" placeholder="AIza... から始まるキー">
+      <div class="note">無料。下の手順どおりに作って、できたキーをここに貼ります。</div>
+      <details class="howto">
+        <summary>▶ APIキーの取り方（5分・初めてでもOK）</summary>
+        <ol>
+          <li><a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a> を開いてGoogleでログイン。</li>
+          <li>画面上部の<b>プロジェクト選択</b>（左上）→「<b>新しいプロジェクト</b>」→ 名前は何でもOK（例: study）→「作成」。</li>
+          <li>左上のメニュー（≡）→「<b>APIとサービス</b>」→「<b>ライブラリ</b>」。</li>
+          <li>検索欄に <code>YouTube Data API v3</code> と入れて開く →「<b>有効にする</b>」。</li>
+          <li>左メニュー「<b>APIとサービス</b>」→「<b>認証情報</b>」→ 上の「<b>＋認証情報を作成</b>」→「<b>APIキー</b>」。</li>
+          <li><code>AIza…</code> で始まるキーが出る →「<b>コピー</b>」。</li>
+          <li>上の入力欄に<b>貼り付ける</b>（自動で保存されます）。</li>
+        </ol>
+      </details>
+    </div>
+
+    <hr class="divider">
+    <div class="field">
+      <label>バックアップ</label>
+      <div class="bkrow">
+        <button id="exportBtn">設定を書き出す</button>
+        <button id="importBtn">読み込む</button>
+        <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+      </div>
+      <div class="note">URL・キー・進捗・記録をまとめて1ファイルに。別のPCやブラウザに引っ越せます。</div>
+    </div>
+
+    <div class="field"><span class="saved" id="savedMsg" style="visibility:hidden;">保存しました</span></div>
+  </details>
+
+</div>
+
+<script>
+"use strict";
+
+// ── localStorage キー ──
+const KEY_SUBJ   = "studyRotation.subjects";   // [{id,name,color,type,url}]
+const KEY_APIKEY = "studyRotation.apiKey";
+const KEY_VIDX   = "studyRotation.videoIndex"; // { subjectId: 次に学習する番号(0始まり) }
+const KEY_CACHE  = "studyRotation.cache";      // { subjectId: {listId, videos:[{id,title}], fetchedAt} }
+const KEY_DAY    = "studyRotation.dayIndex";
+const KEY_LOG    = "studyRotation.log";         // ["YYYY-MM-DD", ...]（完了した日）
+
+// ── 読み書き ──
+function loadJSON(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
+function saveJSON(key, obj) { localStorage.setItem(key, JSON.stringify(obj)); }
+function loadSubjects() { return loadJSON(KEY_SUBJ, []); }
+function saveSubjects(a) { saveJSON(KEY_SUBJ, a); }
+function loadVidx()  { return loadJSON(KEY_VIDX, {}); }
+function loadCache() { return loadJSON(KEY_CACHE, {}); }
+function getApiKey() { return localStorage.getItem(KEY_APIKEY) || ""; }
+
+// ── 初回マイグレーション（旧バージョンの設定を引き継ぐ） ──
+(function migrate() {
+  if (localStorage.getItem(KEY_SUBJ)) return;
+  const oldSrc = loadJSON("studyRotation.sources", {});
+  const defaults = [
+    { id: "illustrator",  name: "Illustrator",   color: "#ff7a00" },
+    { id: "photoshop",    name: "Photoshop",     color: "#31a8ff" },
+    { id: "aftereffects", name: "After Effects", color: "#9a7bff" },
+  ];
+  saveSubjects(defaults.map(d => ({ ...d, type: (oldSrc[d.id] && oldSrc[d.id].type) || "playlist", url: (oldSrc[d.id] && oldSrc[d.id].url) || "" })));
+  // 旧キャッシュ(studyRotation.channelCache)を新キーへ
+  if (!localStorage.getItem(KEY_CACHE)) {
+    const oldCache = localStorage.getItem("studyRotation.channelCache");
+    if (oldCache) localStorage.setItem(KEY_CACHE, oldCache);
+  }
+})();
+
+// ── 日付ヘルパー ──
+function ymd(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function computeStreak(log) {
+  const set = new Set(log);
+  let streak = 0, d = new Date();
+  if (!set.has(ymd(d))) d.setDate(d.getDate() - 1); // 今日まだなら昨日から数える（その日のうちは途切れない）
+  while (set.has(ymd(d))) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+function countLast7(log) {
+  const set = new Set(log);
+  let c = 0, d = new Date();
+  for (let i = 0; i < 7; i++) { if (set.has(ymd(d))) c++; d.setDate(d.getDate() - 1); }
+  return c;
+}
+
+// ── ローテーション（科目数に合わせて自動生成） ──
+function nDays() { return Math.max(1, loadSubjects().length); }
+function wrapDay(n) { const N = nDays(); return ((n % N) + N) % N; }
+function days() {
+  const subs = loadSubjects(), N = subs.length;
+  return subs.map((s, i) => ({ study: s.id, review: subs[(i - 1 + N) % N].id }));
+}
+function subjectById(id) { return loadSubjects().find(s => s.id === id); }
+
+let dayIndex = (() => { const n = parseInt(localStorage.getItem(KEY_DAY), 10); return Number.isInteger(n) ? wrapDay(n) : 0; })();
+function saveDay(n) { localStorage.setItem(KEY_DAY, String(wrapDay(n))); }
+
+// ── 小物 ──
+function extractListId(url) {
+  if (!url) return "";
+  const m = String(url).match(/[?&]list=([^&]+)/);
+  if (m) return m[1];
+  return /^[\w-]+$/.test(String(url).trim()) ? String(url).trim() : "";
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function iframeHTML(src) { return `<iframe src="${src}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`; }
+function emptyState(msg, btnHTML) { return `<div class="player"><div class="empty"><div class="msg">${msg}</div>${btnHTML || ""}</div></div>`; }
+function openSettings() { const d = document.querySelector("details.settings"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
+function flashSaved() { const m = document.getElementById("savedMsg"); m.style.visibility = "visible"; clearTimeout(flashSaved._t); flashSaved._t = setTimeout(() => { m.style.visibility = "hidden"; }, 1500); }
+window.openSettings = openSettings;
+
+// ── YouTube Data API ──
+async function ytJson(path) {
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/${path}`);
+  const data = await res.json();
+  if (data.error) {
+    const reason = (data.error.errors && data.error.errors[0] && data.error.errors[0].reason) || "";
+    if (reason === "quotaExceeded") throw new Error("今日のAPI利用上限に達しました。明日また試してください。");
+    if (reason === "keyInvalid" || data.error.code === 400) throw new Error("APIキーが正しくないようです。設定のキーを見直してください。");
+    throw new Error(data.error.message || "YouTube API でエラーが出ました。");
+  }
+  return data;
+}
+async function uploadsFromChannelId(id, key) {
+  const data = await ytJson(`channels?part=contentDetails&id=${id}&key=${key}`);
+  if (!data.items || !data.items[0]) throw new Error("チャンネルIDからチャンネルを取得できませんでした。");
+  return data.items[0].contentDetails.relatedPlaylists.uploads;
+}
+async function resolveUploadsPlaylist(url, key) {
+  const u = String(url).trim();
+  let m = u.match(/channel\/(UC[\w-]+)/) || u.match(/^(UC[\w-]+)$/);
+  if (m) return await uploadsFromChannelId(m[1], key);
+  m = u.match(/@([\w.\-]+)/);
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forHandle=${encodeURIComponent(m[1])}&key=${key}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  m = u.match(/user\/([\w.\-]+)/);
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forUsername=${encodeURIComponent(m[1])}&key=${key}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  m = u.match(/(?:\/c\/|youtube\.com\/)([^/?#]+)/);
+  const q = m ? decodeURIComponent(m[1]) : u;
+  const s = await ytJson(`search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(q)}&key=${key}`);
+  if (s.items && s.items[0]) return await uploadsFromChannelId(s.items[0].id.channelId, key);
+  throw new Error("チャンネルが見つかりませんでした。チャンネルのURL（…/@名前 や …/channel/UC… の形）を貼ってください。");
+}
+async function fetchVideos(id) {
+  const key = getApiKey();
+  const s = subjectById(id);
+  if (!s || !s.url) throw new Error("URLが未設定です。設定で貼ってください。");
+  if (!key) throw new Error("APIキーが未設定です。設定の一番下でキーを保存してください。");
+  let listId;
+  if (s.type === "channel") listId = await resolveUploadsPlaylist(s.url, key);
+  else { listId = extractListId(s.url); if (!listId) throw new Error("再生リストのURLから list= が読み取れませんでした。"); }
+  let videos = [], pageToken = "";
+  do {
+    const data = await ytJson(`playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${listId}&key=${key}${pageToken ? "&pageToken=" + pageToken : ""}`);
+    for (const it of data.items) videos.push({ id: it.contentDetails.videoId, title: it.snippet.title });
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+  if (s.type === "channel") videos.reverse(); // チャンネルだけ古い順。再生リストは並び順そのまま
+  const cache = loadCache();
+  cache[id] = { listId, videos, fetchedAt: Date.now() };
+  saveJSON(KEY_CACHE, cache);
+  return cache[id];
+}
+
+// ── 1ブロック分のHTML ──
+function blockHTML(id, role) {
+  const s = subjectById(id);
+  if (!s) return "";
+  const isStudy = role === "study";
+  const head = `<div class="blockhead"><span class="badge" style="background:${s.color}">${escapeHtml(s.name)}</span>` +
+    `<span class="mode ${isStudy ? "study" : ""}">${isStudy ? "学習（新しい）" : "復習（前回）"}</span></div>`;
+  const kindWord = s.type === "channel" ? "チャンネル" : "再生リスト";
+
+  if (!s.url) return head + emptyState(`${escapeHtml(s.name)} のURLが未設定です`, `<button onclick="openSettings()">⚙️ 設定する</button>`);
+  const cache = loadCache()[id];
+  if (!cache || !cache.videos || !cache.videos.length)
+    return head + emptyState(`${escapeHtml(s.name)} の${kindWord}をまだ読み込んでいません`, `<button onclick="loadSource('${id}')">${kindWord}を読み込む</button>`);
+
+  const videos = cache.videos, vi = loadVidx()[id] || 0;
+  let idx;
+  if (role === "review") {
+    if (vi <= 0) return head + emptyState(`${escapeHtml(s.name)} はまだ学習していないので、復習はまだありません`, "");
+    idx = Math.min(vi - 1, videos.length - 1);
+  } else {
+    if (vi >= videos.length) return head + emptyState(`最新まで学習し終わりました（全${videos.length}本）。新着が出ていたら取り込めます。`, `<button onclick="loadSource('${id}')">↻ 新着を取り込む</button>`);
+    idx = vi;
+  }
+  const v = videos[idx];
+  let html = head;
+  html += `<div class="caption"><span class="vtitle">${escapeHtml(v.title)}</span><span class="pos">${idx + 1}本目 / 全${videos.length}本</span></div>`;
+  html += `<div class="player">${iframeHTML("https://www.youtube.com/embed/" + v.id)}</div>`;
+  if (isStudy) html += `<div class="jump"><span>学習で見る動画：</span><input type="number" min="1" max="${videos.length}" value="${vi + 1}" id="jump_${id}"><span>本目から</span><button onclick="jumpTo('${id}')">この番号にする</button></div>`;
+  html += `<div class="refreshrow"><button class="refresh" onclick="loadSource('${id}')">↻ 新着を取り込む</button></div>`;
+  return html;
+}
+
+// ── 描画 ──
+function render() {
+  document.getElementById("dateLabel").textContent =
+    new Date().toLocaleDateString("ja-JP", { year: "numeric", month: "long", day: "numeric", weekday: "short" });
+  renderStats();
+
+  const D = days();
+  if (!D.length) {
+    document.getElementById("todayLines").innerHTML = `<div class="line">科目がありません</div>`;
+    document.getElementById("nextDay").textContent = "";
+    document.getElementById("reviewBlock").innerHTML = emptyState("設定で科目を追加してください", `<button onclick="openSettings()">⚙️ 設定する</button>`);
+    document.getElementById("studyBlock").innerHTML = "";
+    return;
+  }
+  dayIndex = wrapDay(dayIndex);
+  const day = D[dayIndex], next = D[wrapDay(dayIndex + 1)];
+  const r = subjectById(day.review), s = subjectById(day.study);
+  document.getElementById("todayLines").innerHTML =
+    `<div class="line"><span class="tag" style="background:${r.color}">復習</span>${escapeHtml(r.name)}</div>` +
+    `<div class="line"><span class="tag" style="background:${s.color}">学習</span>${escapeHtml(s.name)}</div>`;
+  document.getElementById("nextDay").textContent =
+    `次の日：${escapeHtml(subjectById(next.review).name)} の復習／${escapeHtml(subjectById(next.study).name)} の学習`;
+  document.getElementById("reviewBlock").innerHTML = blockHTML(day.review, "review");
+  document.getElementById("studyBlock").innerHTML = blockHTML(day.study, "study");
+}
+function renderStats() {
+  const log = loadJSON(KEY_LOG, []);
+  const el = document.getElementById("stats");
+  if (!log.length) { el.textContent = "🔥 まだ記録なし — 今日の「完了」で記録が始まります"; return; }
+  const last = log.slice().sort().pop().split("-");
+  el.textContent = `🔥 ${computeStreak(log)}日連続 ・ 直近7日で ${countLast7(log)}日 ・ 最後にやった日 ${Number(last[1])}/${Number(last[2])}`;
+}
+
+// ── 動画の取り込み ──
+async function loadSource(id) {
+  const day = days()[dayIndex];
+  const blockEl = document.getElementById(id === day.review ? "reviewBlock" : "studyBlock");
+  const head = blockEl.querySelector(".blockhead");
+  blockEl.innerHTML = (head ? head.outerHTML : "") + emptyState("動画を読み込み中…（本数が多いと少し時間がかかります）", "");
+  try { await fetchVideos(id); render(); }
+  catch (e) { blockEl.innerHTML = (head ? head.outerHTML : "") + emptyState("読み込めませんでした：" + e.message, `<button onclick="openSettings()">⚙️ 設定を見直す</button>`); }
+}
+window.loadSource = loadSource;
+
+function jumpTo(id) {
+  const cache = loadCache()[id];
+  if (!cache || !cache.videos) return;
+  let n = parseInt(document.getElementById("jump_" + id).value, 10);
+  if (!Number.isInteger(n)) return;
+  n = Math.max(1, Math.min(n, cache.videos.length));
+  const vidx = loadVidx(); vidx[id] = n - 1; saveJSON(KEY_VIDX, vidx); render();
+}
+window.jumpTo = jumpTo;
+
+// ── 設定（科目エディタ） ──
+function buildSettings() {
+  const subs = loadSubjects();
+  document.getElementById("settingsFields").innerHTML = subs.map(s => `
+    <div class="subject">
+      <div class="subrow">
+        <input class="sname" type="text" data-id="${s.id}" value="${escapeHtml(s.name)}" placeholder="科目名">
+        <input class="scolor" type="color" data-id="${s.id}" value="${s.color || "#5b8cff"}">
+      </div>
+      <div class="subrow">
+        <select class="stype" data-id="${s.id}">
+          <option value="playlist" ${s.type !== "channel" ? "selected" : ""}>再生リスト</option>
+          <option value="channel" ${s.type === "channel" ? "selected" : ""}>チャンネル（古い順）</option>
+        </select>
+        <button data-act="up" data-id="${s.id}" title="上へ">↑</button>
+        <button data-act="down" data-id="${s.id}" title="下へ">↓</button>
+        <button data-act="del" data-id="${s.id}" title="削除">削除</button>
+      </div>
+      <input class="surl" type="text" data-id="${s.id}" value="${escapeHtml(s.url || "")}" placeholder="YouTubeのURL（再生リスト or チャンネル）">
+    </div>`).join("");
+}
+
+// 科目の文字・色・種類の編集（即保存）
+const sf = document.getElementById("settingsFields");
+sf.addEventListener("input", e => {
+  const el = e.target, id = el.dataset.id; if (!id) return;
+  const subs = loadSubjects(), s = subs.find(x => x.id === id); if (!s) return;
+  if (el.classList.contains("sname")) s.name = el.value;
+  else if (el.classList.contains("surl")) s.url = el.value;
+  else if (el.classList.contains("scolor")) s.color = el.value;
+  else return;
+  saveSubjects(subs); render(); flashSaved();
+});
+sf.addEventListener("change", e => {
+  const el = e.target, id = el.dataset.id; if (!id || !el.classList.contains("stype")) return;
+  const subs = loadSubjects(), s = subs.find(x => x.id === id); if (!s) return;
+  s.type = el.value; saveSubjects(subs); render(); flashSaved();
+});
+// 並べ替え・削除
+sf.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-act]"); if (!btn) return;
+  const id = btn.dataset.id, act = btn.dataset.act;
+  const subs = loadSubjects(), i = subs.findIndex(x => x.id === id); if (i < 0) return;
+  if (act === "up" && i > 0) { [subs[i - 1], subs[i]] = [subs[i], subs[i - 1]]; }
+  else if (act === "down" && i < subs.length - 1) { [subs[i + 1], subs[i]] = [subs[i], subs[i + 1]]; }
+  else if (act === "del") {
+    if (subs.length <= 1) { alert("科目は最低1つ必要です。"); return; }
+    if (!confirm(`「${subs[i].name}」を削除しますか？（この科目の進捗も消えます）`)) return;
+    const rid = subs[i].id; subs.splice(i, 1);
+    const vi = loadVidx(); delete vi[rid]; saveJSON(KEY_VIDX, vi);
+    const c = loadCache(); delete c[rid]; saveJSON(KEY_CACHE, c);
+  } else return;
+  saveSubjects(subs); dayIndex = wrapDay(dayIndex); saveDay(dayIndex); buildSettings(); render(); flashSaved();
+});
+document.getElementById("addSubjectBtn").addEventListener("click", () => {
+  const subs = loadSubjects();
+  subs.push({ id: "subj" + Date.now(), name: "新しい科目", color: "#5b8cff", type: "playlist", url: "" });
+  saveSubjects(subs); buildSettings(); render(); flashSaved();
+});
+document.getElementById("apiKeyInput").addEventListener("input", e => {
+  localStorage.setItem(KEY_APIKEY, e.target.value.trim()); flashSaved();
+});
+
+// ── バックアップ ──
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const data = {};
+  [KEY_SUBJ, KEY_APIKEY, KEY_VIDX, KEY_CACHE, KEY_DAY, KEY_LOG].forEach(k => {
+    const v = localStorage.getItem(k); if (v !== null) data[k] = v;
+  });
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `学習ローテーション_バックアップ_${ymd(new Date())}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      Object.keys(data).forEach(k => { if (k.startsWith("studyRotation.")) localStorage.setItem(k, data[k]); });
+      alert("読み込みました。画面を更新します。");
+      location.reload();
+    } catch (err) { alert("読み込めませんでした：" + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+// ── 操作 ──
+document.getElementById("doneBtn").addEventListener("click", () => {
+  const D = days(); if (!D.length) return;
+  const day = D[dayIndex];
+  // 学習を終えたら、その科目の動画を1つ進める
+  const cache = loadCache()[day.study];
+  const max = cache && cache.videos ? cache.videos.length : Infinity;
+  const vidx = loadVidx(); vidx[day.study] = Math.min((vidx[day.study] || 0) + 1, max); saveJSON(KEY_VIDX, vidx);
+  // 続けた記録（今日の日付を1回だけ）
+  const log = loadJSON(KEY_LOG, []), t = ymd(new Date());
+  if (!log.includes(t)) { log.push(t); saveJSON(KEY_LOG, log); }
+  dayIndex = wrapDay(dayIndex + 1); saveDay(dayIndex);
+  render(); window.scrollTo({ top: 0, behavior: "smooth" });
+});
+document.getElementById("backBtn").addEventListener("click", () => { dayIndex = wrapDay(dayIndex - 1); saveDay(dayIndex); render(); });
+
+// ── 初期化 ──
+document.getElementById("apiKeyInput").value = getApiKey();
+buildSettings();
+render();
+</script>
+</body>
+</html>
