@@ -4,7 +4,7 @@
 1ファイルだけのブラウザアプリ。初期値は Illustrator / Photoshop / After Effects。
 
 **公開URL: https://haizarakumin-collab.github.io/study-rotation/**
-（ブラウザで開くだけで使えます。各自で YouTube Data API キーを設定してください。）
+（ブラウザで開くだけで使えます。**APIキーの設定は不要** — 共有バックエンド経由で動きます。）
 
 ## 1日の流れ
 
@@ -42,14 +42,15 @@
 - 設定の「バックアップ」で、URL・キー・進捗・記録を1つのJSONに書き出し／読み込み。
   別のPCやブラウザに引っ越せる（localStorage はブラウザ単位の保存のため）。
 
-## YouTube Data API キー（必須）
+## APIキーについて（基本は不要）
 
-再生リスト・チャンネルどちらも、動画一覧の取得に無料のAPIキーを使う
-（映画ツールの TMDB キーと同じ要領）。
+動画一覧の取得には YouTube Data API を使うが、キーは**共有バックエンド**
+（[backend/](backend/) の Cloudflare Worker）がサーバー側に隠して持っているので、
+**使う人はキー設定不要**。
 
-- Google Cloud で「YouTube Data API v3」を有効にしてキーを作る。
-  アプリ内の「▶ APIキーの取り方」に手順を載せてある。
-- キー制限は「アプリケーションの制限＝なし」「APIの制限＝YouTube Data API v3 だけ」推奨。
+- 自分のキーを使いたい上級者だけ、設定の「YouTube Data API キー（任意）」に入れると
+  そのキーで直接取得する（共有の利用上限を気にせず使える）。
+- バックエンドの仕組み・デプロイ手順は [backend/README.md](backend/README.md)。
 
 ## 起動（ローカルサーバー経由）
 
