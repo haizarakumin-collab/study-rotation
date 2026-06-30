@@ -3,6 +3,9 @@
 複数の科目を、毎日「前回の復習＋新しい学習」のワンセットで回すための、
 1ファイルだけのブラウザアプリ。初期値は Illustrator / Photoshop / After Effects。
 
+**公開URL: https://haizarakumin-collab.github.io/study-rotation/**
+（ブラウザで開くだけで使えます。各自で YouTube Data API キーを設定してください。）
+
 ## 1日の流れ
 
 1日 = 「前回やったものの復習」＋「新しいものの学習」。科目数の日数で一周する
