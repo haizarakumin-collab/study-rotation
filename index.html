@@ -256,7 +256,7 @@ window.openSettings = openSettings;
 // 共有バックエンド（Cloudflare Worker のプロキシ）のURL。
 // ここにキーは書かない。キーはサーバー側の秘密として保管される。
 // ※デプロイ後にこの値を自分のWorkerのURLへ差し替える（例: https://study-rotation-api.xxx.workers.dev）
-const API_BASE = "";
+const API_BASE = "https://study-rotation-api.haizarakumin.workers.dev";
 
 // path には key を含めない。自分のキーがあれば直接、無ければ共有サーバー経由で叩く。
 async function ytJson(path) {
