@@ -37,6 +37,16 @@ export default {
       return reply({ error: { message: "許可されていないアクセスです（合言葉が違います）" } }, 403, cors);
     }
 
+    // レート制限（RATE_LIMITER バインディングを追加したときだけ有効。無ければ素通し）
+    // IPごとに一定回数を超えたら 429 で止める。ダッシュボードで上限/期間を設定する。
+    if (env.RATE_LIMITER) {
+      const ip = request.headers.get("CF-Connecting-IP") || "unknown";
+      const { success } = await env.RATE_LIMITER.limit({ key: ip });
+      if (!success) {
+        return reply({ error: { message: "アクセスが集中しています。1分ほど待って再度お試しください。" } }, 429, cors);
+      }
+    }
+
     const url = new URL(request.url);
     if (url.pathname !== "/yt") return reply({ error: { message: "Not found" } }, 404, cors);
 
