@@ -5,11 +5,12 @@
 //
 // 大事な点:
 //  - APIキーはこのコードには書かない。Cloudflare の環境変数(Secret) YOUTUBE_API_KEY に入れる。
-//  - 中継先は決まったエンドポイント（playlistItems / channels / search）だけに制限。
+//  - 中継先は playlistItems / channels だけに制限（各1ユニット）。
+//    高コストな search(100ユニット) は許可しない＝クォータ枯渇による乱用を防ぐ。
 //  - 同じ問い合わせは6時間キャッシュして、1日のAPI利用上限(クォータ)を節約する。
 //  - レスポンスには、許可したオリジンだけに CORS を付けて返す。
 
-const ALLOWED_ENDPOINTS = new Set(["playlistItems", "channels", "search"]);
+const ALLOWED_ENDPOINTS = new Set(["playlistItems", "channels"]);
 
 // 画面を置いている場所（ここからの呼び出しだけ許可）。増えたら足す。
 const ALLOWED_ORIGINS = [
@@ -31,19 +32,6 @@ export default {
 
     // ブラウザの事前確認(プリフライト)
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-
-    // 診断用: レート制限などの状態を返すだけ（一時的。確認が済んだら消してよい）
-    {
-      const dbg = new URL(request.url);
-      if (dbg.pathname === "/debug") {
-        let rl = "absent";
-        if (env.RATE_LIMITER) {
-          try { const r = await env.RATE_LIMITER.limit({ key: "debug" }); rl = "present success=" + r.success; }
-          catch (e) { rl = "present ERROR: " + e.message; }
-        }
-        return reply({ rateLimiter: rl, hasToken: !!env.APP_TOKEN, hasApiKey: !!env.YOUTUBE_API_KEY }, 200, cors);
-      }
-    }
 
     // 合言葉トークン（APP_TOKEN を設定したときだけ有効。未設定なら素通し）
     if (env.APP_TOKEN && request.headers.get("X-App-Token") !== env.APP_TOKEN) {

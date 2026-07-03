@@ -294,11 +294,8 @@ async function resolveUploadsPlaylist(url) {
   if (m) { const data = await ytJson(`channels?part=contentDetails&forHandle=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
   m = u.match(/user\/([\w.\-]+)/);
   if (m) { const data = await ytJson(`channels?part=contentDetails&forUsername=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
-  m = u.match(/(?:\/c\/|youtube\.com\/)([^/?#]+)/);
-  const q = m ? decodeURIComponent(m[1]) : u;
-  const s = await ytJson(`search?part=snippet&type=channel&maxResults=1&q=${encodeURIComponent(q)}`);
-  if (s.items && s.items[0]) return await uploadsFromChannelId(s.items[0].id.channelId);
-  throw new Error("チャンネルが見つかりませんでした。チャンネルのURL（…/@名前 や …/channel/UC… の形）を貼ってください。");
+  // 名前検索(search)はコストが高いため使わない。@名前 か /channel/UC… のURLで指定してもらう。
+  throw new Error("チャンネルを特定できませんでした。チャンネルの「…/@名前」または「…/channel/UC…」の形のURLを貼ってください（YouTubeのチャンネルページのURLでOK）。");
 }
 async function fetchVideos(id) {
   const s = subjectById(id);
