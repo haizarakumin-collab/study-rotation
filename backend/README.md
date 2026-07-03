@@ -51,9 +51,20 @@ wrangler secret put YOUTUBE_API_KEY   # キーを貼る
 wrangler deploy
 ```
 
+## 合言葉トークン（任意・雑な直叩き対策）
+
+Worker に Secret `APP_TOKEN` を設定すると、その合言葉を持つリクエストだけ通す。
+フロント(index.html)の `APP_TOKEN` と**同じ値**にすること。
+
+- 設定: Worker の「Settings」→「Variables and Secrets」→ Add
+  - Type: **Secret** / Name: `APP_TOKEN` / Value: フロントの `APP_TOKEN` と同じ文字列
+- `APP_TOKEN` を設定しなければチェックは無効（従来どおり素通し。ロックアウト事故は起きない）。
+- ※フロントは公開ソースなのでトークンは読めてしまう。本物の認証ではなく、
+  URLだけ見つけたbotや curl 直叩きを弾くための摩擦。本気の対策はレート制限。
+
 ## 注意
 
 - クォータ（1日1万ユニット）は全ユーザー共有。チャンネル名検索(search)は100ユニットと高い。
   ハンドル(@名前)やチャンネルID(UC…)のURLを使うと1ユニットで済む。
 - 公開プロキシなのでURLを知られると他人にも使われ得る。小規模なら可。
-  伸びてきたら「合言葉(トークン)」や本格的な認証を足す。
+  本気の対策はレート制限（Cloudflare の WAF/Rate limiting ルール）。

@@ -25,12 +25,17 @@ export default {
     const cors = {
       "Access-Control-Allow-Origin": allowOrigin,
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type, X-App-Token",
       "Vary": "Origin",
     };
 
     // ブラウザの事前確認(プリフライト)
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
+
+    // 合言葉トークン（APP_TOKEN を設定したときだけ有効。未設定なら素通し）
+    if (env.APP_TOKEN && request.headers.get("X-App-Token") !== env.APP_TOKEN) {
+      return reply({ error: { message: "許可されていないアクセスです（合言葉が違います）" } }, 403, cors);
+    }
 
     const url = new URL(request.url);
     if (url.pathname !== "/yt") return reply({ error: { message: "Not found" } }, 404, cors);

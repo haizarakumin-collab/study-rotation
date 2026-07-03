@@ -257,6 +257,9 @@ window.openSettings = openSettings;
 // ここにキーは書かない。キーはサーバー側の秘密として保管される。
 // ※デプロイ後にこの値を自分のWorkerのURLへ差し替える（例: https://study-rotation-api.xxx.workers.dev）
 const API_BASE = "https://study-rotation-api.haizarakumin.workers.dev";
+// 合言葉トークン（Worker の Secret APP_TOKEN と同じ値にする）。
+// ※公開ソースに載るため本物の認証ではなく、雑な直叩きbotを弾くための摩擦。
+const APP_TOKEN = "sr_ycjC6D7Itb1UdJGbIXGXBGUn61ZXL4kG";
 
 // path には key を含めない。自分のキーがあれば直接、無ければ共有サーバー経由で叩く。
 async function ytJson(path) {
@@ -265,7 +268,7 @@ async function ytJson(path) {
   if (key) {
     res = await fetch(`https://www.googleapis.com/youtube/v3/${path}&key=${key}`);
   } else if (API_BASE) {
-    res = await fetch(`${API_BASE}/yt?path=${encodeURIComponent(path)}`);
+    res = await fetch(`${API_BASE}/yt?path=${encodeURIComponent(path)}`, { headers: { "X-App-Token": APP_TOKEN } });
   } else {
     throw new Error("動画を取得する準備ができていません。設定で自分のAPIキーを入れるか、しばらく待ってから試してください。");
   }
