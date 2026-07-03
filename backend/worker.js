@@ -32,6 +32,19 @@ export default {
     // ブラウザの事前確認(プリフライト)
     if (request.method === "OPTIONS") return new Response(null, { headers: cors });
 
+    // 診断用: レート制限などの状態を返すだけ（一時的。確認が済んだら消してよい）
+    {
+      const dbg = new URL(request.url);
+      if (dbg.pathname === "/debug") {
+        let rl = "absent";
+        if (env.RATE_LIMITER) {
+          try { const r = await env.RATE_LIMITER.limit({ key: "debug" }); rl = "present success=" + r.success; }
+          catch (e) { rl = "present ERROR: " + e.message; }
+        }
+        return reply({ rateLimiter: rl, hasToken: !!env.APP_TOKEN, hasApiKey: !!env.YOUTUBE_API_KEY }, 200, cors);
+      }
+    }
+
     // 合言葉トークン（APP_TOKEN を設定したときだけ有効。未設定なら素通し）
     if (env.APP_TOKEN && request.headers.get("X-App-Token") !== env.APP_TOKEN) {
       return reply({ error: { message: "許可されていないアクセスです（合言葉が違います）" } }, 403, cors);
