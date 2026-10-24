@@ -90,6 +90,10 @@
   details.howto b { color: var(--text); }
   details.howto a { color: var(--accent); }
 
+  /* 自動再生スイッチ */
+  .autoplay { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; color: var(--muted); cursor: pointer; }
+  .autoplay input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
+
   /* 表示切り替えプルダウン */
   .modesel {
     font: inherit; font-size: 17px; font-weight: 700; padding: 8px 12px; border-radius: 10px;
@@ -138,6 +142,7 @@
   <!-- 順番に見るリスト（学習とは別。古い順に1本ずつ） -->
   <div id="watchView" hidden>
     <section class="block" id="watchBlock"></section>
+    <label class="autoplay"><input type="checkbox" id="autoplayToggle"> 終わったら次の動画を自動再生</label>
     <div class="actions">
       <button class="primary" id="watchNextBtn">見終わった → 次へ</button>
       <button class="ghost" id="watchPrevBtn">← 前の動画</button>
@@ -208,6 +213,7 @@ const KEY_DAY    = "studyRotation.dayIndex";
 const KEY_LOG    = "studyRotation.log";         // ["YYYY-MM-DD", ...]（完了した日）
 const KEY_WATCH  = "studyRotation.watchLists"; // [{id,name,color,type,url}]（学習とは別の順番視聴）
 const KEY_MODE   = "studyRotation.mode";       // "rotation" または 順番視聴リストのid
+const KEY_AUTOPLAY = "studyRotation.autoplay"; // "1" なら順番視聴で次を自動再生
 
 // ── 読み書き ──
 function loadJSON(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
@@ -289,7 +295,7 @@ function extractListId(url) {
   return /^[\w-]+$/.test(String(url).trim()) ? String(url).trim() : "";
 }
 function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-function iframeHTML(src) { return `<iframe src="${src}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`; }
+function iframeHTML(src, id) { return `<iframe${id ? ` id="${id}"` : ""} src="${src}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`; }
 function emptyState(msg, btnHTML) { return `<div class="player"><div class="empty"><div class="msg">${msg}</div>${btnHTML || ""}</div></div>`; }
 function openSettings() { const d = document.querySelector("details.settings"); d.open = true; d.scrollIntoView({ behavior: "smooth" }); }
 function flashSaved() { const m = document.getElementById("savedMsg"); m.style.visibility = "visible"; clearTimeout(flashSaved._t); flashSaved._t = setTimeout(() => { m.style.visibility = "hidden"; }, 1500); }
@@ -387,7 +393,13 @@ function blockHTML(id, role) {
   const v = videos[idx];
   let html = head;
   html += `<div class="caption"><span class="vtitle">${escapeHtml(v.title)}</span><span class="pos">${idx + 1}本目 / 全${videos.length}本</span></div>`;
-  html += `<div class="player">${iframeHTML("https://www.youtube.com/embed/" + v.id)}</div>`;
+  if (isWatch) {
+    // 終了を検知して次を流すため、IFrame Player API で操作できる形で埋め込む
+    const q = `?enablejsapi=1&origin=${encodeURIComponent(location.origin)}${watchAutostart ? "&autoplay=1" : ""}`;
+    html += `<div class="player">${iframeHTML("https://www.youtube.com/embed/" + v.id + q, "watchPlayer")}</div>`;
+  } else {
+    html += `<div class="player">${iframeHTML("https://www.youtube.com/embed/" + v.id)}</div>`;
+  }
   if (!isReview) html += `<div class="jump"><span>${isWatch ? "見る動画" : "学習で見る動画"}：</span><input type="number" min="1" max="${videos.length}" value="${vi + 1}" id="jump_${id}"><span>本目から</span><button onclick="jumpTo('${id}')">この番号にする</button></div>`;
   html += `<div class="refreshrow"><button class="refresh" onclick="loadSource('${id}')">↻ 新着を取り込む</button></div>`;
   return html;
@@ -402,7 +414,12 @@ function render() {
   document.getElementById("rotationView").hidden = mode !== "rotation";
   document.getElementById("watchView").hidden = mode === "rotation";
   if (mode === "rotation") renderRotation();
-  else document.getElementById("watchBlock").innerHTML = blockHTML(mode, "watch");
+  else {
+    document.getElementById("watchBlock").innerHTML = blockHTML(mode, "watch");
+    watchAutostart = false;
+    document.getElementById("autoplayToggle").checked = autoplayOn();
+    attachWatchPlayer(mode);
+  }
 }
 // 最上部のプルダウン：「アドビ学習」＋ 順番視聴リスト
 function renderModeSelect() {
@@ -540,7 +557,7 @@ document.getElementById("apiKeyInput").addEventListener("input", e => {
 // ── バックアップ ──
 document.getElementById("exportBtn").addEventListener("click", () => {
   const data = {};
-  [KEY_SUBJ, KEY_APIKEY, KEY_VIDX, KEY_CACHE, KEY_DAY, KEY_LOG, KEY_WATCH, KEY_MODE].forEach(k => {
+  [KEY_SUBJ, KEY_APIKEY, KEY_VIDX, KEY_CACHE, KEY_DAY, KEY_LOG, KEY_WATCH, KEY_MODE, KEY_AUTOPLAY].forEach(k => {
     const v = localStorage.getItem(k); if (v !== null) data[k] = v;
   });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -585,6 +602,7 @@ document.getElementById("modeSelect").addEventListener("change", e => {
 // 順番視聴：見終わったら次へ／前の動画へ（学習の記録🔥には含めない）
 function stepWatch(delta) {
   const id = currentMode(); if (id === "rotation") return;
+  watchAutostart = autoplayOn();
   const cache = loadCache()[id];
   const max = cache && cache.videos ? cache.videos.length : 0;
   const vidx = loadVidx();
@@ -593,6 +611,46 @@ function stepWatch(delta) {
   render(); window.scrollTo({ top: 0, behavior: "smooth" });
 }
 document.getElementById("watchNextBtn").addEventListener("click", () => stepWatch(1));
+document.getElementById("autoplayToggle").addEventListener("change", e => {
+  localStorage.setItem(KEY_AUTOPLAY, e.target.checked ? "1" : "0");
+});
+
+// ── 順番視聴の自動再生（YouTube IFrame Player API） ──
+function autoplayOn() { return localStorage.getItem(KEY_AUTOPLAY) === "1"; }
+let watchAutostart = false; // 次の描画で埋め込みを autoplay にするか（ボタン操作の直後だけ）
+let watchPlayer = null;
+let ytApiPromise = null;
+function loadYTApi() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (!ytApiPromise) ytApiPromise = new Promise(resolve => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(); };
+    const sc = document.createElement("script");
+    sc.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(sc);
+  });
+  return ytApiPromise;
+}
+async function attachWatchPlayer(id) {
+  const el = document.getElementById("watchPlayer"); if (!el) return;
+  await loadYTApi();
+  if (document.getElementById("watchPlayer") !== el) return; // 待っている間に描き直された
+  watchPlayer = new YT.Player(el, {
+    events: { onStateChange: e => { if (e.data === YT.PlayerState.ENDED && autoplayOn()) playNextInPlace(id); } },
+  });
+}
+// 埋め込みを作り直さず、同じプレイヤーで次の動画を流す（途切れずに続けて再生できる）
+function playNextInPlace(id) {
+  const cache = loadCache()[id]; if (!cache || !cache.videos) return;
+  const vidx = loadVidx(), next = (vidx[id] || 0) + 1;
+  vidx[id] = Math.min(next, cache.videos.length); saveJSON(KEY_VIDX, vidx);
+  if (next >= cache.videos.length) { render(); return; } // 最後まで見終わった
+  const v = cache.videos[next], box = document.getElementById("watchBlock");
+  box.querySelector(".vtitle").textContent = v.title;
+  box.querySelector(".pos").textContent = `${next + 1}本目 / 全${cache.videos.length}本`;
+  const j = document.getElementById("jump_" + id); if (j) j.value = next + 1;
+  watchPlayer.loadVideoById(v.id);
+}
 document.getElementById("watchPrevBtn").addEventListener("click", () => stepWatch(-1));
 
 // ── 初期化 ──
