@@ -25,8 +25,8 @@ export default {
     const allowOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
     const cors = {
       "Access-Control-Allow-Origin": allowOrigin,
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type, X-App-Token",
+      "Access-Control-Allow-Methods": "GET, PUT, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, X-App-Token, X-Sync-Code",
       "Vary": "Origin",
     };
 
@@ -49,6 +49,9 @@ export default {
     }
 
     const url = new URL(request.url);
+    // 学習アプリ → スマホの学習メモへ「今日の動画」を受け渡す
+    if (url.pathname === "/sync/state") return handleSync(request, env, cors);
+
     if (url.pathname !== "/yt") return reply({ error: { message: "Not found" } }, 404, cors);
 
     const path = url.searchParams.get("path") || "";
@@ -86,6 +89,30 @@ export default {
     return reply(bodyText, status, cors, true);
   },
 };
+
+// 連携データの保存・取得（KV バインディング SYNC を使う）
+// 連携コードそのものは保存せず、SHA-256 にしたものを KV のキーにする。
+async function handleSync(request, env, cors) {
+  if (!env.SYNC) return reply({ error: { message: "連携用の保存場所(SYNC)が設定されていません" } }, 503, cors);
+  const code = request.headers.get("X-Sync-Code") || "";
+  if (code.length < 16) return reply({ error: { message: "連携コードが正しくありません" } }, 400, cors);
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(code));
+  const key = "state:" + [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, "0")).join("");
+
+  if (request.method === "GET") {
+    const saved = await env.SYNC.get(key);
+    if (saved === null) return reply({ error: { message: "まだ連携データがありません" } }, 404, cors);
+    return reply(saved, 200, cors, true);
+  }
+  if (request.method === "PUT") {
+    const body = await request.text();
+    if (body.length > 8192) return reply({ error: { message: "データが大きすぎます" } }, 413, cors);
+    try { JSON.parse(body); } catch { return reply({ error: { message: "JSONとして読めません" } }, 400, cors); }
+    await env.SYNC.put(key, body);
+    return reply({ ok: true }, 200, cors);
+  }
+  return reply({ error: { message: "使えない操作です" } }, 405, cors);
+}
 
 function reply(body, status, cors, raw) {
   return new Response(raw ? body : JSON.stringify(body), {

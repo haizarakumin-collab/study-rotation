@@ -80,6 +80,8 @@
   .subject .subrow button[data-act="del"] { color: var(--danger); }
   .addbtn { width: 100%; border-style: dashed; color: var(--accent); }
   .bkrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .syncqr { display: inline-block; background: #fff; padding: 8px; border-radius: 10px; margin: 6px 0; line-height: 0; }
+  .synccode { font-family: ui-monospace, Menlo, monospace; font-size: 18px; letter-spacing: 1px; color: var(--text); }
 
   details.howto { margin-top: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px; }
   details.howto summary { cursor: pointer; padding: 10px 0; font-size: 13px; color: var(--accent); list-style: none; font-weight: 600; }
@@ -187,6 +189,14 @@
 
     <hr class="divider">
     <div class="field">
+      <label>📱 スマホの学習メモと連携</label>
+      <div id="syncBox"></div>
+      <div class="note">連携すると、スマホの「学習メモ」を開いたときに今日の動画（復習・学習）が選ばれた状態になります。
+        送るのは「今日どの動画か」だけで、メモの中身は送りません。</div>
+    </div>
+
+    <hr class="divider">
+    <div class="field">
       <label>バックアップ</label>
       <div class="bkrow">
         <button id="exportBtn">設定を書き出す</button>
@@ -214,6 +224,8 @@ const KEY_LOG    = "studyRotation.log";         // ["YYYY-MM-DD", ...]（完了�
 const KEY_WATCH  = "studyRotation.watchLists"; // [{id,name,color,type,url}]（学習とは別の順番視聴）
 const KEY_MODE   = "studyRotation.mode";       // "rotation" または 順番視聴リストのid
 const KEY_AUTOPLAY = "studyRotation.autoplay"; // "1" なら順番視聴で次を自動再生
+const KEY_SYNC     = "studyRotation.syncCode"; // スマホの学習メモとの連携コード（作った人だけ）
+const KEY_SYNC_LAST = "studyRotation.syncLast"; // 最後に送った今日の状態（同じなら送らない）
 
 // ── 読み書き ──
 function loadJSON(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
@@ -449,6 +461,7 @@ function renderRotation() {
     `次の日：${escapeHtml(sourceById(next.review).name)} の復習／${escapeHtml(sourceById(next.study).name)} の学習`;
   document.getElementById("reviewBlock").innerHTML = blockHTML(day.review, "review");
   document.getElementById("studyBlock").innerHTML = blockHTML(day.study, "study");
+  pushSyncState();
 }
 function renderStats() {
   const log = loadJSON(KEY_LOG, []);
@@ -557,7 +570,7 @@ document.getElementById("apiKeyInput").addEventListener("input", e => {
 // ── バックアップ ──
 document.getElementById("exportBtn").addEventListener("click", () => {
   const data = {};
-  [KEY_SUBJ, KEY_APIKEY, KEY_VIDX, KEY_CACHE, KEY_DAY, KEY_LOG, KEY_WATCH, KEY_MODE, KEY_AUTOPLAY].forEach(k => {
+  [KEY_SUBJ, KEY_APIKEY, KEY_VIDX, KEY_CACHE, KEY_DAY, KEY_LOG, KEY_WATCH, KEY_MODE, KEY_AUTOPLAY, KEY_SYNC].forEach(k => {
     const v = localStorage.getItem(k); if (v !== null) data[k] = v;
   });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
@@ -653,8 +666,97 @@ function playNextInPlace(id) {
 }
 document.getElementById("watchPrevBtn").addEventListener("click", () => stepWatch(-1));
 
+// ── スマホの学習メモとの連携 ──
+// 今日の状態（科目一覧・復習/学習の動画）を Worker 経由で KV に置き、スマホの notes.html が読む。
+const NOTES_URL = new URL("notes.html", location.href).href.split("#")[0];
+function syncCode() { return localStorage.getItem(KEY_SYNC) || ""; }
+function makeSyncCode() {
+  // 紛らわしい文字(0/O, 1/I/L)を除いた16文字。手で打っても入れやすいよう4文字ずつ区切って見せる
+  const abc = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  const r = crypto.getRandomValues(new Uint8Array(16));
+  return [...r].map(n => abc[n % abc.length]).join("");
+}
+function prettyCode(c) { return c.replace(/(.{4})(?=.)/g, "$1-"); }
+function buildSyncState() {
+  const D = days(); if (!D.length) return null;
+  const day = D[dayIndex];
+  const video = (id, role) => {
+    const cache = loadCache()[id], vi = loadVidx()[id] || 0;
+    const len = cache && cache.videos ? cache.videos.length : Infinity;
+    const idx = role === "review" ? Math.min(vi - 1, len - 1) : vi; // 0始まり（復習は直前に学習した1本）
+    const v = cache && cache.videos && idx >= 0 ? cache.videos[idx] : null;
+    return { subjectId: id, no: idx >= 0 ? idx + 1 : 0, videoId: v ? v.id : "", title: v ? v.title : "" };
+  };
+  return {
+    subjects: loadSubjects().map(({ id, name, color, type, url }) => ({ id, name, color, type, url })),
+    review: video(day.review, "review"),
+    study: video(day.study, "study"),
+  };
+}
+let syncBusy = false;
+async function pushSyncState() {
+  const code = syncCode(); if (!code || syncBusy) return;
+  const st = buildSyncState(); if (!st) return;
+  const body = JSON.stringify(st);
+  if (localStorage.getItem(KEY_SYNC_LAST) === body) return; // 変わっていなければ送らない
+  syncBusy = true;
+  try {
+    const res = await fetch(`${API_BASE}/sync/state`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "X-App-Token": APP_TOKEN, "X-Sync-Code": code },
+      body: JSON.stringify({ ...st, updatedAt: Date.now() }),
+    });
+    if (res.ok) { localStorage.setItem(KEY_SYNC_LAST, body); setSyncStatus("スマホに送りました（" + new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }) + "）"); }
+    else { const d = await res.json().catch(() => ({})); setSyncStatus("送れませんでした：" + ((d.error && d.error.message) || res.status)); }
+  } catch { setSyncStatus("送れませんでした（通信エラー）。次に画面が変わったときにもう一度送ります"); }
+  finally { syncBusy = false; }
+}
+function setSyncStatus(t) { const el = document.getElementById("syncStatus"); if (el) el.textContent = t; }
+function loadQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise((ok, ng) => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+    sc.onload = ok; sc.onerror = ng; document.head.appendChild(sc);
+  });
+}
+async function renderSyncBox() {
+  const box = document.getElementById("syncBox"), code = syncCode();
+  if (!code) {
+    box.innerHTML = `<button id="syncMakeBtn">連携コードを作る</button>`;
+    document.getElementById("syncMakeBtn").onclick = () => {
+      localStorage.setItem(KEY_SYNC, makeSyncCode()); localStorage.removeItem(KEY_SYNC_LAST);
+      renderSyncBox(); pushSyncState();
+    };
+    return;
+  }
+  const link = `${NOTES_URL}#sync=${code}`;
+  box.innerHTML =
+    `<div>スマホのカメラでこのQRを読むと、学習メモが連携した状態で開きます。</div>` +
+    `<div class="syncqr" id="syncQr"></div>` +
+    `<div>手で入れる場合のコード：<span class="synccode">${prettyCode(code)}</span></div>` +
+    `<div class="bkrow" style="margin-top:8px;"><button id="syncCopyBtn">リンクをコピー</button><button id="syncSendBtn">今すぐ送る</button><button id="syncStopBtn" class="ghost">連携をやめる</button></div>` +
+    `<div class="note" id="syncStatus"></div>`;
+  document.getElementById("syncCopyBtn").onclick = async () => {
+    try { await navigator.clipboard.writeText(link); setSyncStatus("リンクをコピーしました"); } catch { setSyncStatus(link); }
+  };
+  document.getElementById("syncSendBtn").onclick = () => { localStorage.removeItem(KEY_SYNC_LAST); pushSyncState(); };
+  document.getElementById("syncStopBtn").onclick = () => {
+    if (!confirm("連携をやめますか？（スマホ側はコードを入れ直すまで今日の動画を受け取れなくなります）")) return;
+    localStorage.removeItem(KEY_SYNC); localStorage.removeItem(KEY_SYNC_LAST); renderSyncBox();
+  };
+  try {
+    await loadQrLib();
+    const qr = qrcode(0, "M"); qr.addData(link); qr.make();
+    document.getElementById("syncQr").innerHTML = qr.createImgTag(4, 0);
+  } catch {
+    document.getElementById("syncQr").outerHTML = `<div class="note">QRを表示できませんでした。「リンクをコピー」でスマホに送ってください。</div>`;
+  }
+}
+
 // ── 初期化 ──
 document.getElementById("apiKeyInput").value = getApiKey();
+renderSyncBox();
 buildSettings();
 render();
 </script>

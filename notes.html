@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="学習メモ">
+<link rel="manifest" href="notes.webmanifest">
+<link rel="apple-touch-icon" href="notes-icon.png">
+<title>学習メモ</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #1a1d27; --panel2: #232735;
+    --text: #e8eaf0; --muted: #9aa0b0; --accent: #5b8cff;
+    --line: #2c3140; --ok: #57d9a3; --warn: #ffb454; --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.55;
+    padding: env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom));
+  }
+  body.typing { padding-bottom: 16px; }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 12px 14px 24px; }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+  header.top h1 { font-size: 18px; margin: 0; }
+  .syncbadge { font-size: 12px; color: var(--muted); }
+  .syncbadge.on { color: var(--ok); }
+  button {
+    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
+    background: var(--panel2); color: var(--text); padding: 10px 14px;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  button.ghost { background: none; color: var(--muted); }
+  button.danger { color: var(--danger); }
+  input, select { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .note { font-size: 12px; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; color: #fff; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { padding: 6px 12px; font-size: 14px; border-radius: 999px; }
+  .chip.on { border-color: var(--accent); color: var(--accent); }
+  .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* 今日の動画カード */
+  .today { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .todaycard { text-align: left; padding: 10px; border-radius: 12px; background: var(--panel); }
+  .todaycard.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .todaycard .sub { font-size: 13px; font-weight: 700; margin-top: 4px; }
+  .todaycard .t { font-size: 12px; color: var(--muted); }
+  .todaycard:disabled { opacity: .5; }
+
+  /* 手動選択 */
+  .picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .stepper { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .stepper button { padding: 6px 12px; }
+  .stepper .no { min-width: 64px; text-align: center; font-weight: 700; }
+
+  /* いま書いている動画＋入力欄（スクロールしても上に残す） */
+  .sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+  .curvideo { font-size: 13px; margin-bottom: 8px; }
+  .curvideo b { font-size: 15px; }
+  .kinds { display: flex; gap: 6px; margin-bottom: 8px; }
+  .kinds button { flex: 1; padding: 8px 4px; font-size: 13px; }
+  .kinds button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  .mods { display: flex; gap: 6px; margin-bottom: 8px; }
+  .mods button { flex: 1; padding: 8px 0; font-size: 18px; }
+  .inrow { display: flex; gap: 6px; }
+  .inrow input { flex: 1; }
+  .inrow input.keys { flex: 0 0 34%; font-family: ui-monospace, Menlo, monospace; }
+  .inrow button { flex: none; }
+
+  /* メモ一覧 */
+  .group h3 { font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  .entry { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: var(--panel); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; }
+  .entry .k { font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: var(--warn); white-space: nowrap; }
+  .entry .n { color: var(--accent); font-weight: 700; min-width: 1.6em; }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 8px; }
+
+  /* 見返す */
+  .search { width: 100%; margin-bottom: 8px; }
+  .vgroup { text-align: left; width: 100%; display: block; }
+  .vgroup .head { font-size: 13px; margin-bottom: 4px; }
+  .vgroup .line { font-size: 14px; padding: 2px 0; }
+  .vgroup .line .k { font-family: ui-monospace, Menlo, monospace; color: var(--warn); margin-right: 6px; }
+  mark { background: rgba(255, 180, 84, .3); color: inherit; border-radius: 3px; }
+
+  /* クイズ */
+  .quiz { text-align: center; padding: 22px 14px; }
+  .quiz .q { font-size: 20px; font-weight: 700; margin: 10px 0 16px; }
+  .quiz .a { font-family: ui-monospace, Menlo, monospace; font-size: 34px; font-weight: 700; color: var(--warn); margin-bottom: 16px; }
+  .quiz .btns { display: flex; gap: 8px; }
+  .quiz .btns button { flex: 1; padding: 14px; }
+
+  /* 下のタブ */
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex;
+    background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar button { flex: 1; border: none; border-radius: 0; background: none; color: var(--muted); padding: 8px 0 10px; font-size: 11px; }
+  .tabbar button span { display: block; font-size: 20px; line-height: 1.3; }
+  .tabbar button.on { color: var(--accent); }
+  body.typing .tabbar { display: none; }
+
+  /* 編集ダイアログ */
+  dialog { width: min(92vw, 480px); background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog .f { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+  dialog .bar { display: flex; gap: 8px; flex-wrap: wrap; }
+  dialog .bar .grow { flex: 1; }
+  .settings .field { margin-bottom: 18px; }
+  .settings label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .settings ol { padding-left: 20px; font-size: 13px; margin: 6px 0; }
+  .row2 { display: flex; gap: 8px; flex-wrap: wrap; }
+  .row2 input { flex: 1; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1>学習メモ</h1>
+    <span class="syncbadge" id="syncBadge"></span>
+  </header>
+
+  <!-- 記録 -->
+  <section id="tab-record">
+    <div class="today" id="todayCards"></div>
+    <div class="picker" id="picker"></div>
+    <div class="sticky">
+      <div class="curvideo ellipsis" id="curVideo"></div>
+      <div class="kinds" id="kinds">
+        <button data-kind="shortcut">⌨️ キー操作</button>
+        <button data-kind="step">📋 手順</button>
+        <button data-kind="value">🔢 設定値</button>
+      </div>
+      <div id="rowShortcut">
+        <div class="mods" id="mods">
+          <button data-mod="⌘">⌘</button><button data-mod="⌥">⌥</button>
+          <button data-mod="⇧">⇧</button><button data-mod="⌃">⌃</button>
+          <button data-mod="BS" aria-label="1文字消す">⌫</button>
+        </div>
+        <div class="inrow">
+          <input id="inKeys" class="keys" placeholder="⌘J" enterkeyhint="next" autocomplete="off" autocapitalize="characters">
+          <input id="inDesc" placeholder="何をする（例: レイヤーを複製）" enterkeyhint="enter" autocomplete="off">
+          <button class="primary" data-add>追加</button>
+        </div>
+      </div>
+      <div id="rowText" class="inrow">
+        <input id="inText" enterkeyhint="enter" autocomplete="off">
+        <button class="primary" data-add>追加</button>
+      </div>
+    </div>
+    <div id="entries"></div>
+  </section>
+
+  <!-- 見返す -->
+  <section id="tab-review" hidden>
+    <input type="search" class="search" id="searchInput" placeholder="キーワードで探す（例: ぼかし、⌘J）">
+    <div class="chips" id="reviewFilter" style="margin-bottom:10px;"></div>
+    <div id="reviewList"></div>
+  </section>
+
+  <!-- クイズ -->
+  <section id="tab-quiz" hidden>
+    <div class="chips" id="quizFilter" style="margin-bottom:10px;"></div>
+    <div id="quizBox"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="tab-settings" class="settings" hidden>
+    <div class="card field">
+      <label>学習アプリとの連携</label>
+      <div id="syncInfo" class="note" style="margin-bottom:8px;"></div>
+      <div class="row2">
+        <input id="codeInput" placeholder="連携コード（例: ABCD-EFGH-…）" autocapitalize="characters" autocomplete="off">
+        <button id="codeSaveBtn">保存</button>
+      </div>
+      <div class="row2" style="margin-top:8px;">
+        <button id="pullBtn">今すぐ受け取る</button>
+        <button id="unlinkBtn" class="ghost">連携を解除</button>
+      </div>
+      <div class="note" style="margin-top:8px;">コードはPCの学習アプリの「⚙️設定 → 📱スマホの学習メモと連携」にあります。QRを読めば自動で入ります。</div>
+    </div>
+    <div class="card field">
+      <label>ホーム画面に追加（アプリのように開ける）</label>
+      <ol>
+        <li><b>iPhone（Safari）</b>：下の共有ボタン（□に↑）→「ホーム画面に追加」</li>
+        <li><b>Android（Chrome）</b>：右上の︙ →「ホーム画面に追加」</li>
+      </ol>
+      <div class="note">iPhoneでは、Safariで開いたときとホーム画面のアイコンから開いたときで保存場所が別になります。追加したあとは、いつもホーム画面のアイコンから開いてください（アイコン側で連携コードが入っていなければ、上の欄に入れてください）。</div>
+    </div>
+    <div class="card field">
+      <label>バックアップ</label>
+      <div class="row2">
+        <button id="exportBtn">メモを書き出す</button>
+        <button id="importBtn">読み込む</button>
+        <input type="file" id="importFile" accept="application/json,.json" hidden>
+      </div>
+      <div class="note" id="countInfo" style="margin-top:8px;"></div>
+    </div>
+  </section>
+</div>
+
+<nav class="tabbar" id="tabbar">
+  <button data-tab="record" class="on"><span>✏️</span>記録</button>
+  <button data-tab="review"><span>🔍</span>見返す</button>
+  <button data-tab="quiz"><span>🃏</span>クイズ</button>
+  <button data-tab="settings"><span>⚙️</span>設定</button>
+</nav>
+
+<dialog id="editDlg">
+  <form method="dialog" id="editForm">
+    <div class="f">
+      <div class="note" id="editKind"></div>
+      <input id="editKeys" placeholder="キー（例: ⌘J）" autocomplete="off">
+      <input id="editText" autocomplete="off">
+    </div>
+    <div class="bar">
+      <button value="up" id="editUp" type="submit">↑</button>
+      <button value="down" id="editDown" type="submit">↓</button>
+      <button value="delete" class="danger" type="submit">削除</button>
+      <span class="grow"></span>
+      <button value="cancel" class="ghost" type="submit">閉じる</button>
+      <button value="save" class="primary" type="submit">保存</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+"use strict";
+
+// ── 共有バックエンド（学習アプリと同じ Cloudflare Worker） ──
+const API_BASE = "https://study-rotation-api.haizarakumin.workers.dev";
+// 合言葉トークン（Worker の Secret APP_TOKEN と同じ値）。公開ソースに載るので本物の認証ではない
+const APP_TOKEN = "sr_ycjC6D7Itb1UdJGbIXGXBGUn61ZXL4kG";
+
+// ── localStorage キー ──
+const K = {
+  code:    "studyNotes.syncCode",  // 学習アプリとの連携コード
+  state:   "studyNotes.state",     // 最後に受け取った「今日の状態」
+  pulled:  "studyNotes.pulledAt",  // 最後に受け取った日時
+  seen:    "studyNotes.seenAt",    // 自動で今日の動画に切り替えた状態の updatedAt
+  cache:   "studyNotes.cache",     // { subjectId: {videos:[{id,title}], fetchedAt} }
+  current: "studyNotes.current",   // { subjectId, no } 今開いている動画
+  lastNo:  "studyNotes.lastNo",    // { subjectId: no } 手動選択で科目ごとに覚えておく本数
+  kind:    "studyNotes.kind",      // 最後に使った入力の種類
+  entries: "studyNotes.entries",   // メモ本体
+};
+const KIND = {
+  shortcut: { icon: "⌨️", label: "ショートカット", ph: "" },
+  step:     { icon: "📋", label: "手順",          ph: "手順を1行で（例: 長方形ツールで背景を描く）" },
+  value:    { icon: "🔢", label: "設定値",        ph: "項目と値（例: ぼかし 12px）" },
+};
+// 連携前に使う科目（学習アプリの初期値と同じid）
+const DEFAULT_SUBJECTS = [
+  { id: "illustrator",  name: "Illustrator",   color: "#ff7a00", type: "channel",  url: "https://www.youtube.com/@irare" },
+  { id: "photoshop",    name: "Photoshop",     color: "#31a8ff", type: "playlist", url: "" },
+  { id: "aftereffects", name: "After Effects", color: "#9a7bff", type: "playlist", url: "" },
+];
+
+// ── 読み書き ──
+function loadJSON(key, def) { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } }
+function saveJSON(key, obj) { localStorage.setItem(key, JSON.stringify(obj)); }
+function escapeHtml(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+function hm(t) { return new Date(t).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function loadState() { return loadJSON(K.state, null); }
+function loadEntries() { return loadJSON(K.entries, []); }
+function saveEntries(a) { saveJSON(K.entries, a); }
+function loadCache() { return loadJSON(K.cache, {}); }
+function subjects() { const st = loadState(); return st && st.subjects && st.subjects.length ? st.subjects : DEFAULT_SUBJECTS; }
+function subjectById(id) { return subjects().find(s => s.id === id) || { id, name: id, color: "#5b8cff", type: "playlist", url: "" }; }
+function normCode(c) { return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+function prettyCode(c) { return c.replace(/(.{4})(?=.)/g, "$1-"); }
+
+// ── YouTube Data API（学習アプリの index.html と同じ取得方法。番号の数え方を揃えるため） ──
+async function ytJson(path) {
+  const res = await fetch(`${API_BASE}/yt?path=${encodeURIComponent(path)}`, { headers: { "X-App-Token": APP_TOKEN } });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || "YouTube API でエラーが出ました。");
+  return data;
+}
+function extractListId(url) {
+  if (!url) return "";
+  const m = String(url).match(/[?&]list=([^&]+)/);
+  if (m) return m[1];
+  return /^[\w-]+$/.test(String(url).trim()) ? String(url).trim() : "";
+}
+async function uploadsFromChannelId(id) {
+  const data = await ytJson(`channels?part=contentDetails&id=${id}`);
+  if (!data.items || !data.items[0]) throw new Error("チャンネルIDからチャンネルを取得できませんでした。");
+  return data.items[0].contentDetails.relatedPlaylists.uploads;
+}
+async function resolveUploadsPlaylist(url) {
+  const u = String(url).trim();
+  let m = u.match(/channel\/(UC[\w-]+)/) || u.match(/^(UC[\w-]+)$/);
+  if (m) return await uploadsFromChannelId(m[1]);
+  m = u.match(/@([\w.\-]+)/);
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forHandle=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  m = u.match(/user\/([\w.\-]+)/);
+  if (m) { const data = await ytJson(`channels?part=contentDetails&forUsername=${encodeURIComponent(m[1])}`); if (data.items && data.items[0]) return data.items[0].contentDetails.relatedPlaylists.uploads; }
+  throw new Error("チャンネルを特定できませんでした。");
+}
+async function fetchVideos(id) {
+  const s = subjectById(id);
+  if (!s.url) throw new Error("URLが未設定です。");
+  let listId;
+  if (s.type === "channel") listId = await resolveUploadsPlaylist(s.url);
+  else { listId = extractListId(s.url); if (!listId) throw new Error("再生リストのURLから list= が読み取れませんでした。"); }
+  let videos = [], pageToken = "";
+  do {
+    const data = await ytJson(`playlistItems?part=snippet,contentDetails&maxResults=50&playlistId=${listId}${pageToken ? "&pageToken=" + pageToken : ""}`);
+    for (const it of data.items) videos.push({ id: it.contentDetails.videoId, title: it.snippet.title });
+    pageToken = data.nextPageToken || "";
+  } while (pageToken);
+  if (s.type === "channel") videos.reverse(); // チャンネルだけ古い順。再生リストは並び順そのまま
+  const cache = loadCache();
+  cache[id] = { videos, fetchedAt: Date.now() };
+  saveJSON(K.cache, cache);
+}
+
+// ── 今開いている動画 ──
+function getCurrent() {
+  const cur = loadJSON(K.current, null);
+  if (cur && cur.subjectId) return cur;
+  const st = loadState();
+  if (st && st.study) return { subjectId: st.study.subjectId, no: st.study.no || 1 };
+  return { subjectId: subjects()[0].id, no: 1 };
+}
+function setCurrent(subjectId, no) {
+  no = Math.max(1, no | 0);
+  saveJSON(K.current, { subjectId, no });
+  const ln = loadJSON(K.lastNo, {}); ln[subjectId] = no; saveJSON(K.lastNo, ln);
+}
+// タイトルは「今日の状態」→ 動画一覧 → 過去のメモ の順に探す
+function videoInfo(subjectId, no) {
+  const st = loadState();
+  for (const r of [st && st.review, st && st.study]) {
+    if (r && r.subjectId === subjectId && r.no === no && r.title) return { videoId: r.videoId, title: r.title };
+  }
+  const c = loadCache()[subjectId];
+  if (c && c.videos && c.videos[no - 1]) return { videoId: c.videos[no - 1].id, title: c.videos[no - 1].title };
+  const e = loadEntries().find(x => x.subjectId === subjectId && x.videoNo === no && x.title);
+  return e ? { videoId: e.videoId || "", title: e.title } : { videoId: "", title: "" };
+}
+const fetching = {};
+function ensureTitles(subjectId) {
+  const s = subjectById(subjectId);
+  if (!s.url || loadCache()[subjectId] || fetching[subjectId]) return;
+  fetching[subjectId] = true;
+  fetchVideos(subjectId).then(renderRecord).catch(() => {}).finally(() => { fetching[subjectId] = false; });
+}
+
+// ── 連携（学習アプリから今日の状態を受け取る） ──
+function isTyping() {
+  const ids = ["inKeys", "inDesc", "inText"];
+  return ids.some(id => { const el = document.getElementById(id); return el.value.trim() || document.activeElement === el; });
+}
+async function pullState() {
+  const code = localStorage.getItem(K.code);
+  if (!code) { renderBadge(); return; }
+  try {
+    const res = await fetch(`${API_BASE}/sync/state`, { headers: { "X-App-Token": APP_TOKEN, "X-Sync-Code": code } });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 404) { setSyncInfo("PCの学習アプリからまだ送られていません。学習アプリを一度開いてください。"); return; }
+    if (!res.ok) throw new Error((data.error && data.error.message) || res.status);
+    saveJSON(K.state, data);
+    localStorage.setItem(K.pulled, String(Date.now()));
+    // 新しい「今日」が来たら学習動画を開く（書いている途中は切り替えない）
+    const seen = Number(localStorage.getItem(K.seen) || 0);
+    if (data.updatedAt > seen && data.study && !isTyping()) {
+      setCurrent(data.study.subjectId, data.study.no || 1);
+      localStorage.setItem(K.seen, String(data.updatedAt));
+    }
+    setSyncInfo("");
+  } catch (e) {
+    setSyncInfo("受け取れませんでした（" + e.message + "）。前回の内容で表示しています。");
+  }
+  renderAll();
+}
+let syncNote = "";
+function setSyncInfo(t) { syncNote = t; renderSettings(); }
+function renderBadge() {
+  const el = document.getElementById("syncBadge"), code = localStorage.getItem(K.code);
+  el.className = "syncbadge" + (code ? " on" : "");
+  el.textContent = code ? "🔗 連携中" : "未連携";
+}
+
+// ── 記録タブ ──
+let kind = localStorage.getItem(K.kind) || "step";
+function renderRecord() {
+  const st = loadState(), cur = getCurrent();
+  // 今日の動画カード
+  const today = document.getElementById("todayCards");
+  if (st && st.study) {
+    today.hidden = false;
+    today.innerHTML = [["review", "復習"], ["study", "学習"]].map(([role, label]) => {
+      const r = st[role], s = subjectById(r.subjectId), on = cur.subjectId === r.subjectId && cur.no === r.no;
+      if (!r.no) return `<button class="todaycard" disabled><span class="tag" style="background:${s.color}">${label}</span><div class="sub">${escapeHtml(s.name)}</div><div class="t">まだありません</div></button>`;
+      return `<button class="todaycard${on ? " on" : ""}" data-sid="${r.subjectId}" data-no="${r.no}">` +
+        `<span class="tag" style="background:${s.color}">${label}</span>` +
+        `<div class="sub">${escapeHtml(s.name)} ${r.no}本目</div><div class="t ellipsis">${escapeHtml(r.title || "")}</div></button>`;
+    }).join("");
+  } else {
+    today.hidden = true;
+  }
+  // 手動の科目チップと本数
+  document.getElementById("picker").innerHTML =
+    `<div class="chips">` + subjects().map(s =>
+      `<button class="chip${s.id === cur.subjectId ? " on" : ""}" data-pick="${s.id}" style="${s.id === cur.subjectId ? `border-color:${s.color};color:${s.color}` : ""}">${escapeHtml(s.name)}</button>`).join("") +
+    `</div><div class="stepper"><button data-step="-1">−</button><span class="no">${cur.no}本目</span><button data-step="1">＋</button></div>`;
+  // いま書いている動画
+  const s = subjectById(cur.subjectId), info = videoInfo(cur.subjectId, cur.no);
+  document.getElementById("curVideo").innerHTML =
+    `<span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> <b>${cur.no}本目</b> ${escapeHtml(info.title || (s.url ? "（タイトル読み込み中…）" : ""))}`;
+  if (!info.title) ensureTitles(cur.subjectId);
+  renderComposer();
+  renderEntries();
+}
+function renderComposer() {
+  document.querySelectorAll("#kinds button").forEach(b => b.classList.toggle("on", b.dataset.kind === kind));
+  document.getElementById("rowShortcut").hidden = kind !== "shortcut";
+  document.getElementById("rowText").hidden = kind === "shortcut";
+  document.getElementById("inText").placeholder = KIND[kind].ph;
+}
+function currentEntries() {
+  const cur = getCurrent();
+  return loadEntries().filter(e => e.subjectId === cur.subjectId && e.videoNo === cur.no).sort((a, b) => a.createdAt - b.createdAt);
+}
+function entryHTML(e, i) {
+  if (e.kind === "shortcut") return `<button class="entry" data-edit="${e.id}"><span class="k">${escapeHtml(e.keys)}</span><span>${escapeHtml(e.text)}</span></button>`;
+  if (e.kind === "step") return `<button class="entry" data-edit="${e.id}"><span class="n">${i + 1}.</span><span>${escapeHtml(e.text)}</span></button>`;
+  return `<button class="entry" data-edit="${e.id}"><span>${escapeHtml(e.text)}</span></button>`;
+}
+function renderEntries() {
+  const list = currentEntries(), box = document.getElementById("entries");
+  if (!list.length) { box.innerHTML = `<div class="empty">この動画のメモはまだありません。<br>上の入力欄に打って Enter で追加できます。</div>`; return; }
+  box.innerHTML = ["shortcut", "step", "value"].map(k => {
+    const items = list.filter(e => e.kind === k);
+    if (!items.length) return "";
+    return `<div class="group"><h3>${KIND[k].icon} ${KIND[k].label}（${items.length}）</h3>${items.map(entryHTML).join("")}</div>`;
+  }).join("");
+}
+function addFromComposer() {
+  const cur = getCurrent(), info = videoInfo(cur.subjectId, cur.no);
+  const keysEl = document.getElementById("inKeys"), descEl = document.getElementById("inDesc"), textEl = document.getElementById("inText");
+  let keys = "", text;
+  if (kind === "shortcut") {
+    keys = keysEl.value.trim().replace(/[a-z]/g, c => c.toUpperCase());
+    text = descEl.value.trim();
+    if (!keys && !text) return;
+  } else {
+    text = textEl.value.trim();
+    if (!text) return;
+  }
+  const entries = loadEntries();
+  entries.push({ id: "n" + Date.now() + Math.random().toString(36).slice(2, 6), subjectId: cur.subjectId, videoNo: cur.no,
+    videoId: info.videoId, title: info.title, kind, keys, text, createdAt: Date.now(), quiz: { ok: 0, ng: 0, due: 0 } });
+  saveEntries(entries);
+  if (kind === "shortcut") { keysEl.value = ""; descEl.value = ""; keysEl.focus(); }
+  else { textEl.value = ""; textEl.focus(); }
+  renderEntries();
+}
+
+// ── 見返すタブ ──
+let reviewFilter = "all";
+function filterChips(boxId, value) {
+  document.getElementById(boxId).innerHTML =
+    [`<button class="chip${value === "all" ? " on" : ""}" data-f="all">すべて</button>`]
+      .concat(subjects().map(s => `<button class="chip${value === s.id ? " on" : ""}" data-f="${s.id}">${escapeHtml(s.name)}</button>`)).join("");
+}
+function highlight(text, q) {
+  const t = escapeHtml(text);
+  if (!q) return t;
+  const i = text.toLowerCase().indexOf(q);
+  if (i < 0) return t;
+  return escapeHtml(text.slice(0, i)) + "<mark>" + escapeHtml(text.slice(i, i + q.length)) + "</mark>" + escapeHtml(text.slice(i + q.length));
+}
+function renderReview() {
+  filterChips("reviewFilter", reviewFilter);
+  const q = document.getElementById("searchInput").value.trim().toLowerCase();
+  let list = loadEntries().filter(e => reviewFilter === "all" || e.subjectId === reviewFilter);
+  if (q) list = list.filter(e => [e.keys, e.text, e.title, subjectById(e.subjectId).name].join(" ").toLowerCase().includes(q));
+  // 動画ごとにまとめ、新しく書いた順に並べる
+  const groups = new Map();
+  list.forEach(e => { const k = e.subjectId + "#" + e.videoNo; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
+  const sorted = [...groups.values()].sort((a, b) => Math.max(...b.map(e => e.createdAt)) - Math.max(...a.map(e => e.createdAt)));
+  const box = document.getElementById("reviewList");
+  if (!sorted.length) { box.innerHTML = `<div class="empty">${q ? "見つかりませんでした。" : "まだメモがありません。"}</div>`; return; }
+  box.innerHTML = sorted.map(items => {
+    items.sort((a, b) => a.createdAt - b.createdAt);
+    const e0 = items[0], s = subjectById(e0.subjectId), info = videoInfo(e0.subjectId, e0.videoNo);
+    let stepNo = 0;
+    const lines = items.slice(0, q ? 50 : 4).map(e => {
+      if (e.kind === "shortcut") return `<div class="line"><span class="k">${highlight(e.keys, q)}</span>${highlight(e.text, q)}</div>`;
+      if (e.kind === "step") { stepNo++; return `<div class="line">${stepNo}. ${highlight(e.text, q)}</div>`; }
+      return `<div class="line">🔢 ${highlight(e.text, q)}</div>`;
+    }).join("");
+    const more = !q && items.length > 4 ? `<div class="note">ほか ${items.length - 4} 件</div>` : "";
+    return `<button class="card vgroup" data-open="${e0.subjectId}" data-no="${e0.videoNo}">` +
+      `<div class="head"><span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> <b>${e0.videoNo}本目</b> <span class="note">${escapeHtml(info.title || "")}</span></div>` +
+      lines + more + `</button>`;
+  }).join("");
+}
+
+// ── クイズタブ（ショートカット） ──
+let quizFilter = "all", quizId = null, quizShown = false, quizAll = false;
+const DAY = 86400000, INTERVALS = [1, 3, 7, 14, 30]; // 覚えた回数ごとの次の出題までの日数
+function quizPool() {
+  return loadEntries().filter(e => e.kind === "shortcut" && e.keys && e.text && (quizFilter === "all" || e.subjectId === quizFilter));
+}
+function pickQuiz(excludeId) {
+  const now = Date.now(), pool = quizPool();
+  let list = pool.filter(e => !(e.quiz && e.quiz.due > now));
+  if (!list.length && quizAll) list = pool;
+  list.sort((a, b) => ((a.quiz && a.quiz.due) || 0) - ((b.quiz && b.quiz.due) || 0));
+  const pick = list.find(e => e.id !== excludeId) || list[0];
+  return pick ? pick.id : null;
+}
+function renderQuiz() {
+  filterChips("quizFilter", quizFilter);
+  const box = document.getElementById("quizBox"), pool = quizPool(), now = Date.now();
+  if (!pool.length) { box.innerHTML = `<div class="empty">まだショートカットのメモがありません。<br>記録で「⌨️ キー操作」を追加すると、ここで覚えられます。</div>`; return; }
+  if (!quizId || !pool.some(e => e.id === quizId)) { quizId = pickQuiz(); quizShown = false; }
+  const left = pool.filter(e => !(e.quiz && e.quiz.due > now)).length;
+  if (!quizId) {
+    const next = Math.min(...pool.map(e => e.quiz.due));
+    box.innerHTML = `<div class="card quiz"><div class="q">今日の分は終わりました 🎉</div><div class="note">次の出題：${hm(next)}</div>` +
+      `<div class="btns" style="margin-top:16px;"><button id="quizAllBtn">ぜんぶもう一度</button></div></div>`;
+    return;
+  }
+  const e = pool.find(x => x.id === quizId), s = subjectById(e.subjectId);
+  box.innerHTML = `<div class="card quiz">` +
+    `<div class="note"><span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> ${e.videoNo}本目 ・ 今日の残り ${left} / 全 ${pool.length}</div>` +
+    `<div class="q">${escapeHtml(e.text)}</div>` +
+    (quizShown
+      ? `<div class="a">${escapeHtml(e.keys)}</div><div class="btns"><button id="quizNg">まだ</button><button id="quizOk" class="primary">覚えた</button></div>`
+      : `<div class="btns"><button id="quizShow" class="primary">答えを見る</button></div>`) +
+    `</div>`;
+}
+function answerQuiz(ok) {
+  const entries = loadEntries(), e = entries.find(x => x.id === quizId); if (!e) return;
+  e.quiz = e.quiz || { ok: 0, ng: 0, due: 0 };
+  if (ok) { e.quiz.ok++; e.quiz.due = Date.now() + INTERVALS[Math.min(e.quiz.ok - 1, INTERVALS.length - 1)] * DAY; }
+  else { e.quiz.ng++; e.quiz.ok = 0; e.quiz.due = Date.now() + 60000; } // 「まだ」は1分後（他のカードの後）にもう一度
+  saveEntries(entries);
+  const prev = quizId; quizId = pickQuiz(prev); quizShown = false;
+  renderQuiz();
+}
+
+// ── 設定タブ ──
+function renderSettings() {
+  const code = localStorage.getItem(K.code), pulled = Number(localStorage.getItem(K.pulled) || 0);
+  document.getElementById("syncInfo").textContent = code
+    ? `連携中（コード ${prettyCode(code)}）。最後に受け取った日時：${pulled ? hm(pulled) : "まだ"}` + (syncNote ? `　${syncNote}` : "")
+    : "まだ連携していません。PCの学習アプリのQRを読むか、コードを入れてください。";
+  const n = loadEntries().length;
+  document.getElementById("countInfo").textContent = `メモは全部で ${n} 件。メモはこのスマホの中だけに保存されています。ときどき書き出しておくと安心です。`;
+  renderBadge();
+}
+
+// ── 全体 ──
+let tab = "record";
+function renderAll() {
+  if (tab === "record") renderRecord();
+  else if (tab === "review") renderReview();
+  else if (tab === "quiz") renderQuiz();
+  renderSettings();
+}
+function switchTab(t) {
+  tab = t;
+  ["record", "review", "quiz", "settings"].forEach(x => { document.getElementById("tab-" + x).hidden = x !== t; });
+  document.querySelectorAll("#tabbar button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  window.scrollTo(0, 0);
+  renderAll();
+}
+
+// ── 操作 ──
+document.getElementById("tabbar").addEventListener("click", e => { const b = e.target.closest("button[data-tab]"); if (b) switchTab(b.dataset.tab); });
+document.getElementById("todayCards").addEventListener("click", e => {
+  const b = e.target.closest("button[data-sid]"); if (!b) return;
+  setCurrent(b.dataset.sid, Number(b.dataset.no)); renderRecord();
+});
+document.getElementById("picker").addEventListener("click", e => {
+  const pick = e.target.closest("button[data-pick]"), step = e.target.closest("button[data-step]"), cur = getCurrent();
+  if (pick) {
+    const st = loadState(), sid = pick.dataset.pick, ln = loadJSON(K.lastNo, {});
+    const today = st && [st.study, st.review].find(r => r && r.subjectId === sid && r.no);
+    setCurrent(sid, today ? today.no : (ln[sid] || 1)); renderRecord();
+  } else if (step) {
+    setCurrent(cur.subjectId, cur.no + Number(step.dataset.step)); renderRecord();
+  }
+});
+document.getElementById("kinds").addEventListener("click", e => {
+  const b = e.target.closest("button[data-kind]"); if (!b) return;
+  kind = b.dataset.kind; localStorage.setItem(K.kind, kind); renderComposer();
+  document.getElementById(kind === "shortcut" ? "inKeys" : "inText").focus();
+});
+// 修飾キーボタン：押しても入力欄からフォーカスを外さない（キーボードを閉じない）
+const mods = document.getElementById("mods");
+mods.addEventListener("pointerdown", e => { if (e.target.closest("button")) e.preventDefault(); });
+mods.addEventListener("click", e => {
+  const b = e.target.closest("button[data-mod]"); if (!b) return;
+  const el = document.getElementById("inKeys");
+  el.value = b.dataset.mod === "BS" ? [...el.value].slice(0, -1).join("") : el.value + b.dataset.mod;
+  el.focus();
+});
+document.querySelectorAll("[data-add]").forEach(b => {
+  b.addEventListener("pointerdown", e => e.preventDefault());
+  b.addEventListener("click", addFromComposer);
+});
+// Enter で追加（日本語変換の確定 Enter では追加しない）
+function onEnter(el, fn) { el.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); fn(); } }); }
+onEnter(document.getElementById("inKeys"), () => document.getElementById("inDesc").focus());
+onEnter(document.getElementById("inDesc"), addFromComposer);
+onEnter(document.getElementById("inText"), addFromComposer);
+// 入力中は下のタブを隠す（キーボードの上に浮かないように）
+document.addEventListener("focusin", e => { if (e.target.matches("input")) document.body.classList.add("typing"); });
+document.addEventListener("focusout", () => setTimeout(() => { if (!document.activeElement || !document.activeElement.matches("input")) document.body.classList.remove("typing"); }, 50));
+
+// メモの編集
+const dlg = document.getElementById("editDlg");
+let editId = null;
+document.getElementById("entries").addEventListener("click", e => {
+  const b = e.target.closest("button[data-edit]"); if (!b) return;
+  const en = loadEntries().find(x => x.id === b.dataset.edit); if (!en) return;
+  editId = en.id;
+  document.getElementById("editKind").textContent = `${KIND[en.kind].icon} ${KIND[en.kind].label}を編集`;
+  const keysEl = document.getElementById("editKeys"), textEl = document.getElementById("editText");
+  keysEl.hidden = en.kind !== "shortcut"; keysEl.value = en.keys || "";
+  textEl.value = en.text || ""; textEl.placeholder = en.kind === "shortcut" ? "何をする" : KIND[en.kind].ph;
+  document.getElementById("editUp").hidden = document.getElementById("editDown").hidden = en.kind !== "step";
+  dlg.showModal();
+});
+// ボタンを押した時点で処理してから閉じる（close イベント頼みにしない）
+document.getElementById("editForm").addEventListener("click", e => {
+  const b = e.target.closest("button[value]"); if (!b) return;
+  e.preventDefault();
+  applyEdit(b.value);
+  dlg.close();
+});
+function applyEdit(act) {
+  const entries = loadEntries(), i = entries.findIndex(x => x.id === editId);
+  if (i < 0 || act === "cancel") return;
+  const en = entries[i];
+  if (act === "delete") {
+    if (!confirm("このメモを削除しますか？")) return;
+    entries.splice(i, 1);
+  } else if (act === "save") {
+    en.keys = document.getElementById("editKeys").value.trim().replace(/[a-z]/g, c => c.toUpperCase());
+    en.text = document.getElementById("editText").value.trim();
+  } else if (act === "up" || act === "down") {
+    // 手順の並べ替え：隣と入れ替えた順に、作成日時を1ミリ秒ずつ振り直す（同じ日時でも確実に並ぶ）
+    const steps = entries.filter(x => x.kind === "step" && x.subjectId === en.subjectId && x.videoNo === en.videoNo).sort((a, b) => a.createdAt - b.createdAt);
+    const j = steps.indexOf(en), k = act === "up" ? j - 1 : j + 1;
+    if (k >= 0 && k < steps.length) {
+      const base = Math.min(...steps.map(x => x.createdAt));
+      [steps[j], steps[k]] = [steps[k], steps[j]];
+      steps.forEach((x, n) => { x.createdAt = base + n; });
+    }
+  }
+  saveEntries(entries); renderEntries();
+}
+
+// 見返す
+document.getElementById("searchInput").addEventListener("input", renderReview);
+document.getElementById("reviewFilter").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (b) { reviewFilter = b.dataset.f; renderReview(); } });
+document.getElementById("reviewList").addEventListener("click", e => {
+  const b = e.target.closest("button[data-open]"); if (!b) return;
+  setCurrent(b.dataset.open, Number(b.dataset.no)); switchTab("record");
+});
+
+// クイズ
+document.getElementById("quizFilter").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (b) { quizFilter = b.dataset.f; quizId = null; renderQuiz(); } });
+document.getElementById("quizBox").addEventListener("click", e => {
+  if (e.target.id === "quizShow") { quizShown = true; renderQuiz(); }
+  else if (e.target.id === "quizOk") answerQuiz(true);
+  else if (e.target.id === "quizNg") answerQuiz(false);
+  else if (e.target.id === "quizAllBtn") { quizAll = true; quizId = null; renderQuiz(); }
+});
+
+// 設定
+document.getElementById("codeSaveBtn").addEventListener("click", () => {
+  const c = normCode(document.getElementById("codeInput").value);
+  if (c.length < 16) { alert("コードは16文字です（ハイフンは無くてもOK）。"); return; }
+  localStorage.setItem(K.code, c); localStorage.removeItem(K.seen);
+  document.getElementById("codeInput").value = ""; pullState();
+});
+document.getElementById("pullBtn").addEventListener("click", () => { localStorage.removeItem(K.seen); pullState(); });
+document.getElementById("unlinkBtn").addEventListener("click", () => {
+  if (!confirm("連携を解除しますか？（メモは消えません）")) return;
+  [K.code, K.state, K.pulled, K.seen].forEach(k => localStorage.removeItem(k));
+  history.replaceState(null, "", location.pathname);
+  renderAll();
+});
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const data = {};
+  Object.values(K).forEach(k => { const v = localStorage.getItem(k); if (v !== null) data[k] = v; });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  a.download = `学習メモ_バックアップ_${ymd(new Date())}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+document.getElementById("importBtn").addEventListener("click", () => document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      Object.keys(data).forEach(k => { if (k.startsWith("studyNotes.")) localStorage.setItem(k, data[k]); });
+      alert("読み込みました。"); location.reload();
+    } catch (err) { alert("読み込めませんでした：" + err.message); }
+  };
+  reader.readAsText(file);
+});
+
+// アプリに戻ってきたら今日の状態を取り直す
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") pullState(); });
+
+// ── 初期化 ──
+// QRのリンク（…/notes.html#sync=コード）から開いたらコードを保存。
+// ホーム画面に追加したときにコードが引き継がれるよう、URLの #sync はあえて残す
+(function readHash() {
+  const m = location.hash.match(/sync=([A-Za-z0-9-]+)/);
+  if (!m) return;
+  const c = normCode(m[1]);
+  if (c.length >= 16 && c !== localStorage.getItem(K.code)) { localStorage.setItem(K.code, c); localStorage.removeItem(K.seen); }
+})();
+renderComposer();
+renderAll();
+pullState();
+</script>
+</body>
+</html>
