@@ -3,119 +3,141 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0f1117">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161614" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="学習メモ">
 <link rel="manifest" href="notes.webmanifest">
 <link rel="apple-touch-icon" href="notes-icon.png">
 <title>学習メモ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* 色の役割（学習アプリと共通。1色につき1つの意味）
+     paper=背景 / sheet=触る面（入力欄・キー） / ink=文字と主ボタン / ink-2=補足 / rule=罫線
+     科目の色=科目を見分ける小さな四角だけ / danger=削除だけ
+     選んでいる状態は色ではなく、下線・左線と太字で表す */
   :root {
-    --bg: #0f1117; --panel: #1a1d27; --panel2: #232735;
-    --text: #e8eaf0; --muted: #9aa0b0; --accent: #5b8cff;
-    --line: #2c3140; --ok: #57d9a3; --warn: #ffb454; --danger: #ff6b6b;
+    --paper: #f5f3ee; --sheet: #ffffff; --ink: #1d1c1a; --ink-2: #67635b; --rule: #d9d4c8; --danger: #b3261e;
+    --font: "IBM Plex Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #161614; --sheet: #1f1f1c; --ink: #ecebe6; --ink-2: #a29d93; --rule: #383631; --danger: #ef6b5e; }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
-    margin: 0; font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.55;
-    padding: env(safe-area-inset-top) 0 calc(76px + env(safe-area-inset-bottom));
+    margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.65 var(--font);
+    padding: env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom));
   }
   body.typing { padding-bottom: 16px; }
-  .wrap { max-width: 640px; margin: 0 auto; padding: 12px 14px 24px; }
-  header.top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
-  header.top h1 { font-size: 18px; margin: 0; }
-  .syncbadge { font-size: 12px; color: var(--muted); }
-  .syncbadge.on { color: var(--ok); }
-  button {
-    font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line);
-    background: var(--panel2); color: var(--text); padding: 10px 14px;
-  }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
-  button.ghost { background: none; color: var(--muted); }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 10px 16px 24px; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .muted { color: var(--ink-2); }
+  .swatch { display: inline-block; width: 9px; height: 9px; background: var(--c); flex: none; align-self: flex-start; margin-top: .55em; }
+  .clamp2 { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .clamp1 { overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 0 10px; border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+  header.top h1 { font-size: 18px; margin: 0; font-weight: 700; }
+  .syncbadge { font-size: 12px; color: var(--ink-2); }
+
+  /* ボタン：主ボタン(墨)／ふつう(枠)／文字だけ */
+  button { font: 500 14px/1.3 var(--font); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 14px; cursor: pointer; }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 700; }
+  button.textbtn { background: none; border: none; padding: 6px 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
   button.danger { color: var(--danger); }
-  input, select { font: inherit; font-size: 16px; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
-  .note { font-size: 12px; color: var(--muted); }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
-  .tag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; color: #fff; }
-  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .chip { padding: 6px 12px; font-size: 14px; border-radius: 999px; }
-  .chip.on { border-color: var(--accent); color: var(--accent); }
-  .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  input, select { font: inherit; font-size: 16px; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 9px 10px; min-width: 0; }
+  input:focus, select:focus { outline: none; border-color: var(--ink); }
 
-  /* 今日の動画カード */
-  .today { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .todaycard { text-align: left; padding: 10px; border-radius: 12px; background: var(--panel); }
-  .todaycard.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
-  .todaycard .sub { font-size: 13px; font-weight: 700; margin-top: 4px; }
-  .todaycard .t { font-size: 12px; color: var(--muted); }
-  .todaycard:disabled { opacity: .5; }
+  /* 今日の動画（学習→復習）：選んでいる行は左線と太字 */
+  .today { margin: 0; padding: 0; list-style: none; border-bottom: 1px solid var(--rule); }
+  .today button { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 2px 8px; width: 100%; text-align: left; background: none; border: none; border-left: 3px solid transparent; border-radius: 0; padding: 10px 0 10px 10px; }
+  .today li + li button { border-top: 1px solid var(--rule); }
+  .today button.on { border-left-color: var(--ink); }
+  .today button.on .sub { font-weight: 700; }
+  .today .role { grid-row: span 2; font-size: 12px; color: var(--ink-2); padding-top: 2px; }
+  .today .sub { display: flex; align-items: baseline; gap: 6px; min-width: 0; overflow-wrap: anywhere; font-weight: 500; }
+  .today .no { font-size: 13px; color: var(--ink-2); }
+  .today .t { grid-column: 2 / 4; font-size: 12px; color: var(--ink-2); }
+  .today button:disabled { opacity: .55; }
 
-  /* 手動選択 */
-  .picker { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
-  .stepper { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-  .stepper button { padding: 6px 12px; }
-  .stepper .no { min-width: 64px; text-align: center; font-weight: 700; }
+  /* ほかの動画を選ぶ */
+  .picker { display: flex; align-items: center; gap: 8px; padding: 10px 0; }
+  .picker label { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .picker select { flex: 1; font-size: 15px; }
+  .stepper { display: flex; align-items: center; gap: 4px; flex: none; }
+  .stepper button { width: 38px; padding: 8px 0; }
+  .stepper .num { min-width: 52px; text-align: center; font-size: 14px; }
 
-  /* いま書いている動画＋入力欄（スクロールしても上に残す） */
-  .sticky { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
-  .curvideo { font-size: 13px; margin-bottom: 8px; }
-  .curvideo b { font-size: 15px; }
-  .kinds { display: flex; gap: 6px; margin-bottom: 8px; }
-  .kinds button { flex: 1; padding: 8px 4px; font-size: 13px; }
-  .kinds button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+  /* 主役：いま書いている動画と入力欄（スクロールしても上に残す） */
+  .sticky { position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 10px 0 12px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); margin-bottom: 4px; }
+  .curvideo { display: flex; align-items: baseline; gap: 6px; font-size: 13px; margin-bottom: 10px; min-width: 0; }
+  .curvideo b { white-space: nowrap; }
+  .curvideo .clamp1 { color: var(--ink-2); min-width: 0; }
+  .kinds { display: flex; border-bottom: 1px solid var(--rule); margin-bottom: 10px; }
+  .kinds button { flex: 1; background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; margin-bottom: -1px; padding: 8px 0; color: var(--ink-2); }
+  .kinds button.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 700; }
   .mods { display: flex; gap: 6px; margin-bottom: 8px; }
-  .mods button { flex: 1; padding: 8px 0; font-size: 18px; }
+  .mods button { flex: 1; padding: 7px 0; font: 500 17px/1.2 var(--mono); }
   .inrow { display: flex; gap: 6px; }
   .inrow input { flex: 1; }
-  .inrow input.keys { flex: 0 0 34%; font-family: ui-monospace, Menlo, monospace; }
+  .inrow input.keys { flex: 0 0 30%; font-family: var(--mono); }
   .inrow button { flex: none; }
 
-  /* メモ一覧 */
-  .group h3 { font-size: 13px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
-  .entry { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: var(--panel); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; }
-  .entry .k { font-family: ui-monospace, Menlo, monospace; font-weight: 700; color: var(--warn); white-space: nowrap; }
-  .entry .n { color: var(--accent); font-weight: 700; min-width: 1.6em; }
-  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 8px; }
+  /* メモ一覧：罫線で区切った行 */
+  .group h3 { font-size: 12px; font-weight: 500; color: var(--ink-2); margin: 16px 0 2px; }
+  .entry { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; padding: 10px 0; font-weight: 400; font-size: 15px; }
+  .entry > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+  kbd, .kbd { font: 500 13px/1.4 var(--mono); background: var(--sheet); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
+  .entry .n { font-family: var(--mono); color: var(--ink-2); min-width: 1.6em; flex: none; }
+  .empty { color: var(--ink-2); font-size: 14px; padding: 28px 0; }
 
   /* 見返す */
-  .search { width: 100%; margin-bottom: 8px; }
-  .vgroup { text-align: left; width: 100%; display: block; }
-  .vgroup .head { font-size: 13px; margin-bottom: 4px; }
-  .vgroup .line { font-size: 14px; padding: 2px 0; }
-  .vgroup .line .k { font-family: ui-monospace, Menlo, monospace; color: var(--warn); margin-right: 6px; }
-  mark { background: rgba(255, 180, 84, .3); color: inherit; border-radius: 3px; }
+  .filters { display: flex; gap: 8px; padding: 10px 0; }
+  .filters input { flex: 1; }
+  .filters select { flex: 0 0 38%; }
+  .vgroup { display: block; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; padding: 12px 0; font-weight: 400; }
+  .vgroup .head { display: flex; align-items: baseline; gap: 6px; font-size: 13px; margin-bottom: 4px; min-width: 0; }
+  .vgroup .head .clamp1 { color: var(--ink-2); min-width: 0; }
+  .vgroup .line { font-size: 14px; padding: 1px 0; overflow-wrap: anywhere; }
+  .vgroup .line .n { font-family: var(--mono); color: var(--ink-2); margin-right: 4px; }
+  .vgroup .line kbd { margin-right: 6px; }
+  mark { background: none; color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 
   /* クイズ */
-  .quiz { text-align: center; padding: 22px 14px; }
-  .quiz .q { font-size: 20px; font-weight: 700; margin: 10px 0 16px; }
-  .quiz .a { font-family: ui-monospace, Menlo, monospace; font-size: 34px; font-weight: 700; color: var(--warn); margin-bottom: 16px; }
+  .quiz { padding: 28px 0 16px; text-align: center; }
+  .quiz .meta { display: flex; justify-content: center; align-items: baseline; gap: 6px; font-size: 12px; color: var(--ink-2); flex-wrap: wrap; }
+  .quiz .q { font-size: 22px; font-weight: 700; margin: 18px 0 22px; overflow-wrap: anywhere; }
+  .quiz .a { margin-bottom: 24px; }
+  .quiz .a kbd { font-size: 30px; padding: 4px 14px; }
   .quiz .btns { display: flex; gap: 8px; }
   .quiz .btns button { flex: 1; padding: 14px; }
 
-  /* 下のタブ */
-  .tabbar {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex;
-    background: var(--panel); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom);
-  }
-  .tabbar button { flex: 1; border: none; border-radius: 0; background: none; color: var(--muted); padding: 8px 0 10px; font-size: 11px; }
-  .tabbar button span { display: block; font-size: 20px; line-height: 1.3; }
-  .tabbar button.on { color: var(--accent); }
+  /* 下のタブ（文字だけ。今いるタブは上線と太字） */
+  .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; display: flex; background: var(--paper); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar button { flex: 1; background: none; border: none; border-top: 2px solid transparent; border-radius: 0; margin-top: -1px; padding: 14px 0 12px; color: var(--ink-2); font-size: 13px; }
+  .tabbar button.on { color: var(--ink); border-top-color: var(--ink); font-weight: 700; }
   body.typing .tabbar { display: none; }
 
   /* 編集ダイアログ */
-  dialog { width: min(92vw, 480px); background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
-  dialog::backdrop { background: rgba(0, 0, 0, .6); }
-  dialog .f { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-  dialog .bar { display: flex; gap: 8px; flex-wrap: wrap; }
+  dialog { width: min(92vw, 480px); background: var(--paper); color: var(--ink); border: 1px solid var(--ink); border-radius: 4px; padding: 16px; }
+  dialog::backdrop { background: rgba(0, 0, 0, .45); }
+  dialog .f { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  dialog .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
   dialog .bar .grow { flex: 1; }
-  .settings .field { margin-bottom: 18px; }
-  .settings label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  .settings ol { padding-left: 20px; font-size: 13px; margin: 6px 0; }
-  .row2 { display: flex; gap: 8px; flex-wrap: wrap; }
-  .row2 input { flex: 1; }
+
+  /* 設定 */
+  .settings .field { padding: 16px 0; border-bottom: 1px solid var(--rule); }
+  .settings .field > label { display: block; font-weight: 700; margin-bottom: 8px; }
+  .settings ol { padding-left: 20px; font-size: 14px; margin: 4px 0 8px; }
+  .note { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+  .row2 { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .row2 input { flex: 1 1 180px; font-family: var(--mono); }
 </style>
 </head>
 <body>
@@ -127,24 +149,32 @@
 
   <!-- 記録 -->
   <section id="tab-record">
-    <div class="today" id="todayCards"></div>
-    <div class="picker" id="picker"></div>
+    <ul class="today" id="todayCards"></ul>
+    <div class="picker" id="picker">
+      <label for="pickSubject">ほかの動画</label>
+      <select id="pickSubject"></select>
+      <div class="stepper">
+        <button data-step="-1" aria-label="1本前">−</button>
+        <span class="num" id="pickNo"></span>
+        <button data-step="1" aria-label="1本後">＋</button>
+      </div>
+    </div>
     <div class="sticky">
-      <div class="curvideo ellipsis" id="curVideo"></div>
-      <div class="kinds" id="kinds">
-        <button data-kind="shortcut">⌨️ キー操作</button>
-        <button data-kind="step">📋 手順</button>
-        <button data-kind="value">🔢 設定値</button>
+      <div class="curvideo" id="curVideo"></div>
+      <div class="kinds" id="kinds" role="tablist">
+        <button data-kind="shortcut">キー操作</button>
+        <button data-kind="step">手順</button>
+        <button data-kind="value">設定値</button>
       </div>
       <div id="rowShortcut">
         <div class="mods" id="mods">
-          <button data-mod="⌘">⌘</button><button data-mod="⌥">⌥</button>
-          <button data-mod="⇧">⇧</button><button data-mod="⌃">⌃</button>
+          <button data-mod="⌘" aria-label="command">⌘</button><button data-mod="⌥" aria-label="option">⌥</button>
+          <button data-mod="⇧" aria-label="shift">⇧</button><button data-mod="⌃" aria-label="control">⌃</button>
           <button data-mod="BS" aria-label="1文字消す">⌫</button>
         </div>
         <div class="inrow">
-          <input id="inKeys" class="keys" placeholder="⌘J" enterkeyhint="next" autocomplete="off" autocapitalize="characters">
-          <input id="inDesc" placeholder="何をする（例: レイヤーを複製）" enterkeyhint="enter" autocomplete="off">
+          <input id="inKeys" class="keys" placeholder="例 ⌘J" enterkeyhint="next" autocomplete="off" autocapitalize="characters">
+          <input id="inDesc" placeholder="何をする操作か" enterkeyhint="enter" autocomplete="off">
           <button class="primary" data-add>追加</button>
         </div>
       </div>
@@ -158,72 +188,74 @@
 
   <!-- 見返す -->
   <section id="tab-review" hidden>
-    <input type="search" class="search" id="searchInput" placeholder="キーワードで探す（例: ぼかし、⌘J）">
-    <div class="chips" id="reviewFilter" style="margin-bottom:10px;"></div>
+    <div class="filters">
+      <input type="search" id="searchInput" placeholder="キーワードで探す">
+      <select id="reviewFilter" aria-label="科目で絞り込む"></select>
+    </div>
     <div id="reviewList"></div>
   </section>
 
   <!-- クイズ -->
   <section id="tab-quiz" hidden>
-    <div class="chips" id="quizFilter" style="margin-bottom:10px;"></div>
+    <div class="filters"><select id="quizFilter" aria-label="科目で絞り込む" style="flex:1"></select></div>
     <div id="quizBox"></div>
   </section>
 
   <!-- 設定 -->
   <section id="tab-settings" class="settings" hidden>
-    <div class="card field">
+    <div class="field">
       <label>学習アプリとの連携</label>
-      <div id="syncInfo" class="note" style="margin-bottom:8px;"></div>
+      <div id="syncInfo" class="note" style="margin-bottom:10px;"></div>
       <div class="row2">
-        <input id="codeInput" placeholder="連携コード（例: ABCD-EFGH-…）" autocapitalize="characters" autocomplete="off">
-        <button id="codeSaveBtn">保存</button>
+        <input id="codeInput" placeholder="連携コード（16文字）" autocapitalize="characters" autocomplete="off">
+        <button id="codeSaveBtn">コードを保存</button>
       </div>
-      <div class="row2" style="margin-top:8px;">
-        <button id="pullBtn">今すぐ受け取る</button>
-        <button id="unlinkBtn" class="ghost">連携を解除</button>
+      <div class="row2" style="margin-top:8px; gap:20px;">
+        <button id="pullBtn">今日の動画を受け取り直す</button>
+        <button id="unlinkBtn" class="textbtn">連携を解除</button>
       </div>
-      <div class="note" style="margin-top:8px;">コードはPCの学習アプリの「⚙️設定 → 📱スマホの学習メモと連携」にあります。QRを読めば自動で入ります。</div>
+      <p class="note">コードはPCの学習アプリの「設定 → スマホの学習メモと連携」にあります。QRを読めば自動で入ります。</p>
     </div>
-    <div class="card field">
-      <label>ホーム画面に追加（アプリのように開ける）</label>
+    <div class="field">
+      <label>ホーム画面に追加する</label>
       <ol>
-        <li><b>iPhone（Safari）</b>：下の共有ボタン（□に↑）→「ホーム画面に追加」</li>
-        <li><b>Android（Chrome）</b>：右上の︙ →「ホーム画面に追加」</li>
+        <li>iPhone（Safari）：共有ボタン →「ホーム画面に追加」</li>
+        <li>Android（Chrome）：右上の︙ →「ホーム画面に追加」</li>
       </ol>
-      <div class="note">iPhoneでは、Safariで開いたときとホーム画面のアイコンから開いたときで保存場所が別になります。追加したあとは、いつもホーム画面のアイコンから開いてください（アイコン側で連携コードが入っていなければ、上の欄に入れてください）。</div>
+      <p class="note">iPhoneでは、Safariで開いたときとホーム画面のアイコンから開いたときで保存場所が別になります。追加したあとは、いつもアイコンから開いてください。アイコン側で「未連携」なら、上の欄にコードを入れてください。</p>
     </div>
-    <div class="card field">
+    <div class="field">
       <label>バックアップ</label>
       <div class="row2">
         <button id="exportBtn">メモを書き出す</button>
-        <button id="importBtn">読み込む</button>
+        <button id="importBtn">書き出したファイルを読み込む</button>
         <input type="file" id="importFile" accept="application/json,.json" hidden>
       </div>
-      <div class="note" id="countInfo" style="margin-top:8px;"></div>
+      <p class="note" id="countInfo"></p>
     </div>
   </section>
 </div>
 
 <nav class="tabbar" id="tabbar">
-  <button data-tab="record" class="on"><span>✏️</span>記録</button>
-  <button data-tab="review"><span>🔍</span>見返す</button>
-  <button data-tab="quiz"><span>🃏</span>クイズ</button>
-  <button data-tab="settings"><span>⚙️</span>設定</button>
+  <button data-tab="record" class="on">記録</button>
+  <button data-tab="review">見返す</button>
+  <button data-tab="quiz">クイズ</button>
+  <button data-tab="settings">設定</button>
 </nav>
 
 <dialog id="editDlg">
   <form method="dialog" id="editForm">
     <div class="f">
       <div class="note" id="editKind"></div>
-      <input id="editKeys" placeholder="キー（例: ⌘J）" autocomplete="off">
+      <input id="editKeys" placeholder="キー（例 ⌘J）" autocomplete="off" style="font-family:var(--mono)">
       <input id="editText" autocomplete="off">
     </div>
     <div class="bar">
-      <button value="up" id="editUp" type="submit">↑</button>
-      <button value="down" id="editDown" type="submit">↓</button>
-      <button value="delete" class="danger" type="submit">削除</button>
+      <button value="up" id="editUp" type="submit">↑ 上へ</button>
+      <button value="down" id="editDown" type="submit">↓ 下へ</button>
       <span class="grow"></span>
-      <button value="cancel" class="ghost" type="submit">閉じる</button>
+      <button value="delete" class="textbtn danger" type="submit">削除</button>
+      <button value="cancel" class="textbtn" type="submit">閉じる</button>
       <button value="save" class="primary" type="submit">保存</button>
     </div>
   </form>
@@ -250,9 +282,9 @@ const K = {
   entries: "studyNotes.entries",   // メモ本体
 };
 const KIND = {
-  shortcut: { icon: "⌨️", label: "ショートカット", ph: "" },
-  step:     { icon: "📋", label: "手順",          ph: "手順を1行で（例: 長方形ツールで背景を描く）" },
-  value:    { icon: "🔢", label: "設定値",        ph: "項目と値（例: ぼかし 12px）" },
+  shortcut: { label: "キー操作", ph: "" },
+  step:     { label: "手順",     ph: "手順を1行で（例 長方形ツールで背景を描く）" },
+  value:    { label: "設定値",   ph: "項目と値（例 ぼかし 12px）" },
 };
 // 連携前に使う科目（学習アプリの初期値と同じid）
 const DEFAULT_SUBJECTS = [
@@ -272,9 +304,10 @@ function loadEntries() { return loadJSON(K.entries, []); }
 function saveEntries(a) { saveJSON(K.entries, a); }
 function loadCache() { return loadJSON(K.cache, {}); }
 function subjects() { const st = loadState(); return st && st.subjects && st.subjects.length ? st.subjects : DEFAULT_SUBJECTS; }
-function subjectById(id) { return subjects().find(s => s.id === id) || { id, name: id, color: "#5b8cff", type: "playlist", url: "" }; }
+function subjectById(id) { return subjects().find(s => s.id === id) || { id, name: id, color: "#999999", type: "playlist", url: "" }; }
 function normCode(c) { return String(c || "").toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 function prettyCode(c) { return c.replace(/(.{4})(?=.)/g, "$1-"); }
+function swatch(s) { return `<i class="swatch" style="--c:${s.color}"></i>`; }
 
 // ── YouTube Data API（学習アプリの index.html と同じ取得方法。番号の数え方を揃えるため） ──
 async function ytJson(path) {
@@ -384,44 +417,44 @@ async function pullState() {
 let syncNote = "";
 function setSyncInfo(t) { syncNote = t; renderSettings(); }
 function renderBadge() {
-  const el = document.getElementById("syncBadge"), code = localStorage.getItem(K.code);
-  el.className = "syncbadge" + (code ? " on" : "");
-  el.textContent = code ? "🔗 連携中" : "未連携";
+  document.getElementById("syncBadge").textContent = localStorage.getItem(K.code) ? "学習アプリと連携中" : "未連携";
 }
 
 // ── 記録タブ ──
 let kind = localStorage.getItem(K.kind) || "step";
 function renderRecord() {
   const st = loadState(), cur = getCurrent();
-  // 今日の動画カード
+  // 今日の動画：学習（主役）→ 復習
   const today = document.getElementById("todayCards");
   if (st && st.study) {
     today.hidden = false;
-    today.innerHTML = [["review", "復習"], ["study", "学習"]].map(([role, label]) => {
-      const r = st[role], s = subjectById(r.subjectId), on = cur.subjectId === r.subjectId && cur.no === r.no;
-      if (!r.no) return `<button class="todaycard" disabled><span class="tag" style="background:${s.color}">${label}</span><div class="sub">${escapeHtml(s.name)}</div><div class="t">まだありません</div></button>`;
-      return `<button class="todaycard${on ? " on" : ""}" data-sid="${r.subjectId}" data-no="${r.no}">` +
-        `<span class="tag" style="background:${s.color}">${label}</span>` +
-        `<div class="sub">${escapeHtml(s.name)} ${r.no}本目</div><div class="t ellipsis">${escapeHtml(r.title || "")}</div></button>`;
+    today.innerHTML = [["study", "学習"], ["review", "復習"]].map(([role, label]) => {
+      const r = st[role], s = subjectById(r.subjectId);
+      if (!r.no) return `<li><button disabled><span class="role">${label}</span><span class="sub">${swatch(s)}${escapeHtml(s.name)}</span><span></span><span class="t">まだありません</span></button></li>`;
+      const on = cur.subjectId === r.subjectId && cur.no === r.no;
+      return `<li><button class="${on ? "on" : ""}" data-sid="${r.subjectId}" data-no="${r.no}">` +
+        `<span class="role">${label}</span><span class="sub">${swatch(s)}${escapeHtml(s.name)}</span><span class="no num">${r.no}本目</span>` +
+        `<span class="t clamp2">${escapeHtml(r.title || "")}</span></button></li>`;
     }).join("");
   } else {
     today.hidden = true;
   }
-  // 手動の科目チップと本数
-  document.getElementById("picker").innerHTML =
-    `<div class="chips">` + subjects().map(s =>
-      `<button class="chip${s.id === cur.subjectId ? " on" : ""}" data-pick="${s.id}" style="${s.id === cur.subjectId ? `border-color:${s.color};color:${s.color}` : ""}">${escapeHtml(s.name)}</button>`).join("") +
-    `</div><div class="stepper"><button data-step="-1">−</button><span class="no">${cur.no}本目</span><button data-step="1">＋</button></div>`;
+  // ほかの動画を選ぶ
+  const sel = document.getElementById("pickSubject");
+  sel.innerHTML = subjects().map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+  sel.value = cur.subjectId;
+  document.getElementById("pickNo").textContent = `${cur.no}本目`;
   // いま書いている動画
   const s = subjectById(cur.subjectId), info = videoInfo(cur.subjectId, cur.no);
   document.getElementById("curVideo").innerHTML =
-    `<span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> <b>${cur.no}本目</b> ${escapeHtml(info.title || (s.url ? "（タイトル読み込み中…）" : ""))}`;
+    `${swatch(s)}<b>${escapeHtml(s.name)} <span class="num">${cur.no}本目</span></b>` +
+    `<span class="clamp1">${escapeHtml(info.title || (s.url ? "タイトルを読み込み中" : ""))}</span>`;
   if (!info.title) ensureTitles(cur.subjectId);
   renderComposer();
   renderEntries();
 }
 function renderComposer() {
-  document.querySelectorAll("#kinds button").forEach(b => b.classList.toggle("on", b.dataset.kind === kind));
+  document.querySelectorAll("#kinds button").forEach(b => { b.classList.toggle("on", b.dataset.kind === kind); b.setAttribute("aria-selected", b.dataset.kind === kind); });
   document.getElementById("rowShortcut").hidden = kind !== "shortcut";
   document.getElementById("rowText").hidden = kind === "shortcut";
   document.getElementById("inText").placeholder = KIND[kind].ph;
@@ -431,17 +464,17 @@ function currentEntries() {
   return loadEntries().filter(e => e.subjectId === cur.subjectId && e.videoNo === cur.no).sort((a, b) => a.createdAt - b.createdAt);
 }
 function entryHTML(e, i) {
-  if (e.kind === "shortcut") return `<button class="entry" data-edit="${e.id}"><span class="k">${escapeHtml(e.keys)}</span><span>${escapeHtml(e.text)}</span></button>`;
+  if (e.kind === "shortcut") return `<button class="entry" data-edit="${e.id}">${e.keys ? `<kbd>${escapeHtml(e.keys)}</kbd>` : ""}<span>${escapeHtml(e.text)}</span></button>`;
   if (e.kind === "step") return `<button class="entry" data-edit="${e.id}"><span class="n">${i + 1}.</span><span>${escapeHtml(e.text)}</span></button>`;
   return `<button class="entry" data-edit="${e.id}"><span>${escapeHtml(e.text)}</span></button>`;
 }
 function renderEntries() {
   const list = currentEntries(), box = document.getElementById("entries");
-  if (!list.length) { box.innerHTML = `<div class="empty">この動画のメモはまだありません。<br>上の入力欄に打って Enter で追加できます。</div>`; return; }
+  if (!list.length) { box.innerHTML = `<p class="empty">この動画のメモはまだありません。上の欄に打って Enter で追加できます。</p>`; return; }
   box.innerHTML = ["shortcut", "step", "value"].map(k => {
     const items = list.filter(e => e.kind === k);
     if (!items.length) return "";
-    return `<div class="group"><h3>${KIND[k].icon} ${KIND[k].label}（${items.length}）</h3>${items.map(entryHTML).join("")}</div>`;
+    return `<div class="group"><h3>${KIND[k].label}　<span class="num">${items.length}</span></h3>${items.map(entryHTML).join("")}</div>`;
   }).join("");
 }
 function addFromComposer() {
@@ -467,10 +500,10 @@ function addFromComposer() {
 
 // ── 見返すタブ ──
 let reviewFilter = "all";
-function filterChips(boxId, value) {
-  document.getElementById(boxId).innerHTML =
-    [`<button class="chip${value === "all" ? " on" : ""}" data-f="all">すべて</button>`]
-      .concat(subjects().map(s => `<button class="chip${value === s.id ? " on" : ""}" data-f="${s.id}">${escapeHtml(s.name)}</button>`)).join("");
+function filterSelect(selId, value) {
+  const sel = document.getElementById(selId);
+  sel.innerHTML = `<option value="all">すべての科目</option>` + subjects().map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join("");
+  sel.value = subjects().some(s => s.id === value) ? value : "all";
 }
 function highlight(text, q) {
   const t = escapeHtml(text);
@@ -480,7 +513,7 @@ function highlight(text, q) {
   return escapeHtml(text.slice(0, i)) + "<mark>" + escapeHtml(text.slice(i, i + q.length)) + "</mark>" + escapeHtml(text.slice(i + q.length));
 }
 function renderReview() {
-  filterChips("reviewFilter", reviewFilter);
+  filterSelect("reviewFilter", reviewFilter);
   const q = document.getElementById("searchInput").value.trim().toLowerCase();
   let list = loadEntries().filter(e => reviewFilter === "all" || e.subjectId === reviewFilter);
   if (q) list = list.filter(e => [e.keys, e.text, e.title, subjectById(e.subjectId).name].join(" ").toLowerCase().includes(q));
@@ -489,24 +522,24 @@ function renderReview() {
   list.forEach(e => { const k = e.subjectId + "#" + e.videoNo; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(e); });
   const sorted = [...groups.values()].sort((a, b) => Math.max(...b.map(e => e.createdAt)) - Math.max(...a.map(e => e.createdAt)));
   const box = document.getElementById("reviewList");
-  if (!sorted.length) { box.innerHTML = `<div class="empty">${q ? "見つかりませんでした。" : "まだメモがありません。"}</div>`; return; }
+  if (!sorted.length) { box.innerHTML = `<p class="empty">${q ? "見つかりませんでした。" : "まだメモがありません。記録タブで書いたメモがここに並びます。"}</p>`; return; }
   box.innerHTML = sorted.map(items => {
     items.sort((a, b) => a.createdAt - b.createdAt);
     const e0 = items[0], s = subjectById(e0.subjectId), info = videoInfo(e0.subjectId, e0.videoNo);
     let stepNo = 0;
     const lines = items.slice(0, q ? 50 : 4).map(e => {
-      if (e.kind === "shortcut") return `<div class="line"><span class="k">${highlight(e.keys, q)}</span>${highlight(e.text, q)}</div>`;
-      if (e.kind === "step") { stepNo++; return `<div class="line">${stepNo}. ${highlight(e.text, q)}</div>`; }
-      return `<div class="line">🔢 ${highlight(e.text, q)}</div>`;
+      if (e.kind === "shortcut") return `<div class="line">${e.keys ? `<kbd>${highlight(e.keys, q)}</kbd>` : ""}${highlight(e.text, q)}</div>`;
+      if (e.kind === "step") { stepNo++; return `<div class="line"><span class="n">${stepNo}.</span>${highlight(e.text, q)}</div>`; }
+      return `<div class="line">${highlight(e.text, q)}</div>`;
     }).join("");
-    const more = !q && items.length > 4 ? `<div class="note">ほか ${items.length - 4} 件</div>` : "";
-    return `<button class="card vgroup" data-open="${e0.subjectId}" data-no="${e0.videoNo}">` +
-      `<div class="head"><span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> <b>${e0.videoNo}本目</b> <span class="note">${escapeHtml(info.title || "")}</span></div>` +
+    const more = !q && items.length > 4 ? `<div class="note">ほか <span class="num">${items.length - 4}</span> 件</div>` : "";
+    return `<button class="vgroup" data-open="${e0.subjectId}" data-no="${e0.videoNo}">` +
+      `<div class="head">${swatch(s)}<b>${escapeHtml(s.name)} <span class="num">${e0.videoNo}本目</span></b><span class="clamp1">${escapeHtml(info.title || "")}</span></div>` +
       lines + more + `</button>`;
   }).join("");
 }
 
-// ── クイズタブ（ショートカット） ──
+// ── クイズタブ（キー操作） ──
 let quizFilter = "all", quizId = null, quizShown = false, quizAll = false;
 const DAY = 86400000, INTERVALS = [1, 3, 7, 14, 30]; // 覚えた回数ごとの次の出題までの日数
 function quizPool() {
@@ -521,24 +554,24 @@ function pickQuiz(excludeId) {
   return pick ? pick.id : null;
 }
 function renderQuiz() {
-  filterChips("quizFilter", quizFilter);
+  filterSelect("quizFilter", quizFilter);
   const box = document.getElementById("quizBox"), pool = quizPool(), now = Date.now();
-  if (!pool.length) { box.innerHTML = `<div class="empty">まだショートカットのメモがありません。<br>記録で「⌨️ キー操作」を追加すると、ここで覚えられます。</div>`; return; }
+  if (!pool.length) { box.innerHTML = `<p class="empty">キー操作のメモがまだありません。記録タブの「キー操作」で追加すると、ここで覚えられます。</p>`; return; }
   if (!quizId || !pool.some(e => e.id === quizId)) { quizId = pickQuiz(); quizShown = false; }
   const left = pool.filter(e => !(e.quiz && e.quiz.due > now)).length;
   if (!quizId) {
-    const next = Math.min(...pool.map(e => e.quiz.due));
-    box.innerHTML = `<div class="card quiz"><div class="q">今日の分は終わりました 🎉</div><div class="note">次の出題：${hm(next)}</div>` +
-      `<div class="btns" style="margin-top:16px;"><button id="quizAllBtn">ぜんぶもう一度</button></div></div>`;
+    const next = Math.min(...pool.map(e => (e.quiz && e.quiz.due) || 0));
+    box.innerHTML = `<div class="quiz"><div class="q">今日の分は終わりました</div><p class="note">次の出題は ${hm(next)}</p>` +
+      `<div class="btns" style="margin-top:20px;"><button id="quizAllBtn">全部もう一度やる</button></div></div>`;
     return;
   }
   const e = pool.find(x => x.id === quizId), s = subjectById(e.subjectId);
-  box.innerHTML = `<div class="card quiz">` +
-    `<div class="note"><span class="tag" style="background:${s.color}">${escapeHtml(s.name)}</span> ${e.videoNo}本目 ・ 今日の残り ${left} / 全 ${pool.length}</div>` +
+  box.innerHTML = `<div class="quiz">` +
+    `<div class="meta">${swatch(s)}<span>${escapeHtml(s.name)} <span class="num">${e.videoNo}本目</span></span><span>残り <span class="num">${left}</span> / <span class="num">${pool.length}</span></span></div>` +
     `<div class="q">${escapeHtml(e.text)}</div>` +
     (quizShown
-      ? `<div class="a">${escapeHtml(e.keys)}</div><div class="btns"><button id="quizNg">まだ</button><button id="quizOk" class="primary">覚えた</button></div>`
-      : `<div class="btns"><button id="quizShow" class="primary">答えを見る</button></div>`) +
+      ? `<div class="a"><kbd>${escapeHtml(e.keys)}</kbd></div><div class="btns"><button id="quizNg">まだ覚えていない</button><button id="quizOk" class="primary">覚えた</button></div>`
+      : `<div class="btns"><button id="quizShow" class="primary">キーを見る</button></div>`) +
     `</div>`;
 }
 function answerQuiz(ok) {
@@ -558,7 +591,7 @@ function renderSettings() {
     ? `連携中（コード ${prettyCode(code)}）。最後に受け取った日時：${pulled ? hm(pulled) : "まだ"}` + (syncNote ? `　${syncNote}` : "")
     : "まだ連携していません。PCの学習アプリのQRを読むか、コードを入れてください。";
   const n = loadEntries().length;
-  document.getElementById("countInfo").textContent = `メモは全部で ${n} 件。メモはこのスマホの中だけに保存されています。ときどき書き出しておくと安心です。`;
+  document.getElementById("countInfo").textContent = `メモは全部で ${n} 件。このスマホの中だけに保存されているので、ときどき書き出しておくと安心です。`;
   renderBadge();
 }
 
@@ -584,15 +617,14 @@ document.getElementById("todayCards").addEventListener("click", e => {
   const b = e.target.closest("button[data-sid]"); if (!b) return;
   setCurrent(b.dataset.sid, Number(b.dataset.no)); renderRecord();
 });
+document.getElementById("pickSubject").addEventListener("change", e => {
+  const st = loadState(), sid = e.target.value, ln = loadJSON(K.lastNo, {});
+  const today = st && [st.study, st.review].find(r => r && r.subjectId === sid && r.no);
+  setCurrent(sid, today ? today.no : (ln[sid] || 1)); renderRecord();
+});
 document.getElementById("picker").addEventListener("click", e => {
-  const pick = e.target.closest("button[data-pick]"), step = e.target.closest("button[data-step]"), cur = getCurrent();
-  if (pick) {
-    const st = loadState(), sid = pick.dataset.pick, ln = loadJSON(K.lastNo, {});
-    const today = st && [st.study, st.review].find(r => r && r.subjectId === sid && r.no);
-    setCurrent(sid, today ? today.no : (ln[sid] || 1)); renderRecord();
-  } else if (step) {
-    setCurrent(cur.subjectId, cur.no + Number(step.dataset.step)); renderRecord();
-  }
+  const step = e.target.closest("button[data-step]"); if (!step) return;
+  const cur = getCurrent(); setCurrent(cur.subjectId, cur.no + Number(step.dataset.step)); renderRecord();
 });
 document.getElementById("kinds").addEventListener("click", e => {
   const b = e.target.closest("button[data-kind]"); if (!b) return;
@@ -628,10 +660,10 @@ document.getElementById("entries").addEventListener("click", e => {
   const b = e.target.closest("button[data-edit]"); if (!b) return;
   const en = loadEntries().find(x => x.id === b.dataset.edit); if (!en) return;
   editId = en.id;
-  document.getElementById("editKind").textContent = `${KIND[en.kind].icon} ${KIND[en.kind].label}を編集`;
+  document.getElementById("editKind").textContent = `${KIND[en.kind].label}を編集`;
   const keysEl = document.getElementById("editKeys"), textEl = document.getElementById("editText");
   keysEl.hidden = en.kind !== "shortcut"; keysEl.value = en.keys || "";
-  textEl.value = en.text || ""; textEl.placeholder = en.kind === "shortcut" ? "何をする" : KIND[en.kind].ph;
+  textEl.value = en.text || ""; textEl.placeholder = en.kind === "shortcut" ? "何をする操作か" : KIND[en.kind].ph;
   document.getElementById("editUp").hidden = document.getElementById("editDown").hidden = en.kind !== "step";
   dlg.showModal();
 });
@@ -667,14 +699,14 @@ function applyEdit(act) {
 
 // 見返す
 document.getElementById("searchInput").addEventListener("input", renderReview);
-document.getElementById("reviewFilter").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (b) { reviewFilter = b.dataset.f; renderReview(); } });
+document.getElementById("reviewFilter").addEventListener("change", e => { reviewFilter = e.target.value; renderReview(); });
 document.getElementById("reviewList").addEventListener("click", e => {
   const b = e.target.closest("button[data-open]"); if (!b) return;
   setCurrent(b.dataset.open, Number(b.dataset.no)); switchTab("record");
 });
 
 // クイズ
-document.getElementById("quizFilter").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (b) { quizFilter = b.dataset.f; quizId = null; renderQuiz(); } });
+document.getElementById("quizFilter").addEventListener("change", e => { quizFilter = e.target.value; quizId = null; renderQuiz(); });
 document.getElementById("quizBox").addEventListener("click", e => {
   if (e.target.id === "quizShow") { quizShown = true; renderQuiz(); }
   else if (e.target.id === "quizOk") answerQuiz(true);

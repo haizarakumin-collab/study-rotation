@@ -4,114 +4,129 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>学習ローテーション</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  /* 色の役割（1色につき1つの意味）
+     paper=背景 / sheet=触る面（入力欄・動画枠） / ink=文字と主ボタン / ink-2=補足 / rule=罫線
+     科目の色=科目を見分ける小さな四角だけ / danger=削除だけ */
   :root {
-    --bg: #0f1117; --panel: #1a1d27; --panel2: #232735;
-    --text: #e8eaf0; --muted: #9aa0b0; --accent: #5b8cff;
-    --line: #2c3140; --ok: #57d9a3; --warn: #ffb454; --danger: #ff6b6b;
+    --paper: #f5f3ee; --sheet: #ffffff; --ink: #1d1c1a; --ink-2: #67635b; --rule: #d9d4c8; --danger: #b3261e;
+    --font: "IBM Plex Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #161614; --sheet: #1f1f1c; --ink: #ecebe6; --ink-2: #a29d93; --rule: #383631; --danger: #ef6b5e; }
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; font-family: -apple-system, "Hiragino Sans", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
-    background: var(--bg); color: var(--text); line-height: 1.6;
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.7 var(--font); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 24px 72px; }
+  b, strong { font-weight: 700; }
+  .num, .pos { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* 見出し行 */
+  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding-bottom: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--rule); }
+  .modesel { font: 700 20px/1.3 var(--font); color: var(--ink); background: transparent; border: none; padding: 0; cursor: pointer; max-width: 70%; }
+  .date { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+
+  /* 今日の行（何をやる日か） */
+  .today { margin-bottom: 18px; }
+  .todayline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 24px; font-size: 16px; }
+  .todayline .lead { font-weight: 700; }
+  .todayline .item { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; overflow-wrap: anywhere; }
+  .role { font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+  .swatch { display: inline-block; width: 10px; height: 10px; background: var(--c); flex: none; align-self: flex-start; margin-top: .6em; }
+  .meta { margin-top: 4px; color: var(--ink-2); font-size: 13px; display: flex; flex-wrap: wrap; gap: 0 20px; }
+
+  /* 主役＝今日学習する動画、脇＝復習の動画と完了ボタン */
+  .layout { display: grid; grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr); gap: 32px; align-items: start; }
+  .side { display: flex; flex-direction: column; gap: 24px; position: sticky; top: 16px; }
+  .single { max-width: 860px; }
+
+  .blockhead { display: flex; gap: 8px; margin-bottom: 6px; }
+  .blockhead > span { min-width: 0; overflow-wrap: anywhere; }
+  .blockhead .swatch { align-self: flex-start; margin-top: .55em; }
+  .blockhead .name { font-weight: 700; }
+  .caption { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .vtitle { font-weight: 500; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .main .vtitle { font-size: 18px; line-height: 1.5; }
+  .side .vtitle { font-size: 14px; }
+  .pos { color: var(--ink-2); font-size: 12px; white-space: nowrap; }
+  .player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--sheet); border: 1px solid var(--rule); }
+  .player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 20px; text-align: center; color: var(--ink-2); font-size: 14px; overflow: auto; }
+  .empty .msg { max-width: 460px; overflow-wrap: anywhere; }
+
+  .tools { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+  .jump { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .jump input { width: 84px; text-align: center; font-family: var(--mono); }
+
+  /* ボタン：主ボタン(墨)／ふつう(枠)／文字だけ */
+  button { font: 500 14px/1.3 var(--font); color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 9px 14px; cursor: pointer; }
+  button:hover { border-color: var(--ink); }
+  button.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 700; }
+  button.primary:hover { opacity: .88; }
+  button.textbtn { background: none; border: none; padding: 4px 0; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; }
+  button.textbtn:hover { color: var(--ink); }
+  button.danger { color: var(--danger); }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .actions { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .actions .primary { width: 100%; padding: 13px 16px; font-size: 15px; }
+  .actions.row { flex-direction: row; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .actions.row .primary { width: auto; min-width: 240px; }
+
+  input[type="text"], input[type="number"], input:not([type]), select {
+    font: inherit; font-size: 14px; color: var(--ink); background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 8px 10px; min-width: 0;
   }
-  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 18px 60px; }
-  header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
-  header.top h1 { font-size: 18px; margin: 0; font-weight: 700; }
-  header.top .date { color: var(--muted); font-size: 13px; }
+  .autoplay { display: flex; align-items: center; gap: 8px; margin: 14px 0; font-size: 14px; cursor: pointer; }
+  .autoplay input { width: 16px; height: 16px; accent-color: var(--ink); }
 
-  .todaybar { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; }
-  .todaybar .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
-  .todaybar .lines { display: flex; flex-direction: column; gap: 6px; }
-  .todaybar .line { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
-  .todaybar .line .tag { font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; color: #fff; }
-  .todaybar .stats { margin-top: 12px; font-size: 13px; color: var(--warn); }
-  .todaybar .nextday { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  /* 設定（罫線で区切るだけ。箱は重ねない） */
+  details.settings { margin-top: 56px; border-top: 1px solid var(--rule); }
+  details.settings > summary { cursor: pointer; padding: 16px 0; font-weight: 700; list-style: none; }
+  details.settings > summary::-webkit-details-marker { display: none; }
+  details.settings > summary::after { content: "＋"; float: right; color: var(--ink-2); font-weight: 400; }
+  details.settings[open] > summary::after { content: "−"; }
+  .field { padding: 18px 0; max-width: 860px; }
+  .field > label { display: block; font-weight: 700; margin-bottom: 10px; }
+  .field > input[type="text"] { width: 100%; }
+  .note { font-size: 13px; color: var(--ink-2); margin-top: 6px; overflow-wrap: anywhere; }
+  .note a, details.howto a { color: var(--ink); }
+  .divider { border: none; border-top: 1px solid var(--rule); margin: 0; }
+  .saved { font-size: 13px; color: var(--ink-2); }
 
-  .block { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; margin-bottom: 16px; }
-  .blockhead { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .badge { font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 999px; color: #fff; }
-  .mode { font-size: 13px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
-  .mode.study { border-color: var(--accent); color: var(--accent); }
-
-  .caption { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 8px; font-size: 14px; }
-  .caption .vtitle { font-weight: 600; }
-  .caption .pos { color: var(--muted); font-size: 13px; white-space: nowrap; }
-  .player { position: relative; width: 100%; aspect-ratio: 16 / 9; background: var(--panel2); border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
-  .player iframe { width: 100%; height: 100%; border: 0; }
-  .empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; padding: 24px; color: var(--muted); }
-  .empty .msg { max-width: 480px; }
-
-  .jump { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; color: var(--muted); }
-  .jump input { width: 80px; font: inherit; text-align: center; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
-  .refreshrow { text-align: center; margin-top: 8px; }
-  .refresh { font-size: 13px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 4px 0; }
-  .refresh:hover { color: var(--accent); }
-
-  .actions { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
-  button { font: inherit; cursor: pointer; border-radius: 10px; border: 1px solid var(--line); background: var(--panel2); color: var(--text); padding: 11px 18px; transition: filter .15s; }
-  button:hover { filter: brightness(1.15); }
-  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; flex: 1; min-width: 180px; }
-  button.ghost { color: var(--muted); }
-  .jump button { padding: 8px 14px; }
-
-  /* 設定 */
-  details.settings { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 4px 18px; margin-top: 16px; }
-  details.settings summary { cursor: pointer; padding: 14px 0; font-size: 14px; color: var(--muted); list-style: none; }
-  details.settings summary::-webkit-details-marker { display: none; }
-  .field { margin: 0 0 16px; }
-  .field > label { display: block; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
-  .field input[type="text"], .field input:not([type]), .field select {
-    width: 100%; font: inherit; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text);
-  }
-  .field .note { font-size: 12px; color: var(--muted); margin-top: 5px; }
-  .field .note a { color: var(--accent); }
-  .divider { border: none; border-top: 1px solid var(--line); margin: 18px 0; }
-  .saved { color: var(--ok); font-size: 13px; }
-
-  /* 科目エディタ */
-  .subject { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--bg); }
-  .subrow { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-  .subject .sname { flex: 1; }
-  .subject .scolor { width: 46px; height: 40px; padding: 2px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); flex: none; cursor: pointer; }
-  .subject .stype { flex: 1; }
+  /* 科目・リストの編集：1件1行 */
+  .subject { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-bottom: 1px solid var(--rule); }
+  .subject:first-child { border-top: 1px solid var(--rule); }
+  .subrow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .subject .scolor { width: 36px; height: 36px; padding: 0; border: 1px solid var(--rule); border-radius: 3px; background: var(--sheet); cursor: pointer; flex: none; }
+  .subject .sname { flex: 1 1 200px; }
+  .subject .stype { flex: 0 1 200px; }
   .subject .surl { width: 100%; }
-  .subject .subrow button { padding: 9px 12px; flex: none; }
-  .subject .subrow button[data-act="del"] { color: var(--danger); }
-  .addbtn { width: 100%; border-style: dashed; color: var(--accent); }
+  .subject button[data-act] { padding: 5px 10px; font-size: 13px; }
+  .subject button[data-act="del"] { margin-left: auto; color: var(--danger); }
+  .addbtn { margin-top: 12px; }
   .bkrow { display: flex; gap: 8px; flex-wrap: wrap; }
-  .syncqr { display: inline-block; background: #fff; padding: 8px; border-radius: 10px; margin: 6px 0; line-height: 0; }
-  .synccode { font-family: ui-monospace, Menlo, monospace; font-size: 18px; letter-spacing: 1px; color: var(--text); }
+  .syncqr { display: inline-block; background: #fff; padding: 10px; border: 1px solid var(--rule); margin: 8px 0; line-height: 0; }
+  .synccode { font-family: var(--mono); font-size: 18px; letter-spacing: .06em; }
 
-  details.howto { margin-top: 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 4px 14px; }
-  details.howto summary { cursor: pointer; padding: 10px 0; font-size: 13px; color: var(--accent); list-style: none; font-weight: 600; }
+  details.howto { margin-top: 8px; }
+  details.howto summary { cursor: pointer; font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
   details.howto summary::-webkit-details-marker { display: none; }
-  details.howto ol { margin: 4px 0 10px; padding-left: 20px; font-size: 13px; }
-  details.howto li { margin-bottom: 8px; }
-  details.howto code { background: var(--panel2); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
-  details.howto b { color: var(--text); }
-  details.howto a { color: var(--accent); }
+  details.howto ol { margin: 8px 0 0; padding-left: 20px; font-size: 13px; }
+  details.howto li { margin-bottom: 6px; }
+  details.howto code { font-family: var(--mono); font-size: 12px; }
 
-  /* 自動再生スイッチ */
-  .autoplay { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; font-size: 14px; color: var(--muted); cursor: pointer; }
-  .autoplay input { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
-
-  /* 表示切り替えプルダウン */
-  .modesel {
-    font: inherit; font-size: 17px; font-weight: 700; padding: 8px 12px; border-radius: 10px;
-    border: 1px solid var(--line); background: var(--panel); color: var(--text); cursor: pointer; max-width: 70%;
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; gap: 28px; }
+    .side { position: static; }
+    .actions .primary, .actions.row .primary { width: 100%; }
   }
-
-  /* スマホ対応 */
   @media (max-width: 560px) {
-    .wrap { padding: 16px 12px 48px; }
-    header.top h1 { font-size: 16px; }
-    .todaybar, .block { padding: 14px; }
-    .todaybar .line { font-size: 15px; }
-    .caption { flex-direction: column; align-items: flex-start; gap: 2px; }
-    .actions button.primary { min-width: 100%; }
-    .subrow { flex-wrap: wrap; }
-    .subject .stype { flex: 1 1 100%; }
+    .wrap { padding: 14px 14px 56px; }
+    .modesel { font-size: 18px; }
+    .main .vtitle { font-size: 16px; }
   }
 </style>
 </head>
@@ -125,46 +140,46 @@
 
   <!-- アドビ学習（復習＋学習のローテーション） -->
   <div id="rotationView">
-  <section class="todaybar">
-    <div class="label">今日やること</div>
-    <div class="lines" id="todayLines"></div>
-    <div class="stats" id="stats"></div>
-    <div class="nextday" id="nextDay"></div>
-  </section>
-
-  <section class="block" id="reviewBlock"></section>
-  <section class="block" id="studyBlock"></section>
-
-  <div class="actions">
-    <button class="primary" id="doneBtn">完了 → 次の日へ</button>
-    <button class="ghost" id="backBtn">← 前の日</button>
-  </div>
+    <section class="today" aria-label="今日やること">
+      <div class="todayline" id="todayLines"></div>
+      <div class="meta"><span id="stats"></span><span id="nextDay"></span></div>
+    </section>
+    <div class="layout">
+      <section class="main" id="studyBlock"></section>
+      <aside class="side">
+        <section id="reviewBlock"></section>
+        <div class="actions">
+          <button class="primary" id="doneBtn">今日の分を完了して次の日へ</button>
+          <button class="textbtn" id="backBtn">前の日に戻る</button>
+        </div>
+      </aside>
+    </div>
   </div>
 
   <!-- 順番に見るリスト（学習とは別。古い順に1本ずつ） -->
-  <div id="watchView" hidden>
-    <section class="block" id="watchBlock"></section>
+  <div id="watchView" class="single main" hidden>
+    <section id="watchBlock"></section>
     <label class="autoplay"><input type="checkbox" id="autoplayToggle"> 終わったら次の動画を自動再生</label>
-    <div class="actions">
-      <button class="primary" id="watchNextBtn">見終わった → 次へ</button>
-      <button class="ghost" id="watchPrevBtn">← 前の動画</button>
+    <div class="actions row">
+      <button class="primary" id="watchNextBtn">見終わったので次の動画へ</button>
+      <button class="textbtn" id="watchPrevBtn">前の動画に戻る</button>
     </div>
   </div>
 
   <details class="settings">
-    <summary>⚙️ 科目・リスト・URL・キーの設定</summary>
+    <summary>設定（科目・リスト・連携・バックアップ）</summary>
 
     <div class="field">
       <label>科目（上から順にローテーション）</label>
       <div id="settingsFields" data-list="subj"></div>
-      <button id="addSubjectBtn" class="addbtn">＋ 科目を追加</button>
+      <button id="addSubjectBtn" class="addbtn">科目を追加</button>
     </div>
 
     <hr class="divider">
     <div class="field">
       <label>順番に見るリスト（学習とは別・上のプルダウンで切り替え）</label>
       <div id="watchFields" data-list="watch"></div>
-      <button id="addWatchBtn" class="addbtn">＋ リストを追加</button>
+      <button id="addWatchBtn" class="addbtn">リストを追加</button>
     </div>
 
     <hr class="divider">
@@ -174,7 +189,7 @@
       <div class="note">ふだんは<b>空のままでOK</b>。共有サーバー経由で動きます。
         自分のキーを使いたい場合（共有の上限を気にせず使いたい等）だけ入力してください。</div>
       <details class="howto">
-        <summary>▶ 自分のAPIキーの取り方（任意・5分）</summary>
+        <summary>自分のAPIキーの取り方</summary>
         <ol>
           <li><a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a> を開いてGoogleでログイン。</li>
           <li>画面上部の<b>プロジェクト選択</b>（左上）→「<b>新しいプロジェクト</b>」→ 名前は何でもOK（例: study）→「作成」。</li>
@@ -189,7 +204,7 @@
 
     <hr class="divider">
     <div class="field">
-      <label>📱 スマホの学習メモと連携</label>
+      <label>スマホの学習メモと連携</label>
       <div id="syncBox"></div>
       <div class="note">連携すると、スマホの「学習メモ」を開いたときに今日の動画（復習・学習）が選ばれた状態になります。
         送るのは「今日どの動画か」だけで、メモの中身は送りません。</div>
@@ -384,11 +399,11 @@ function blockHTML(id, role) {
   // role: "review"=前回の復習 / "study"=新しい学習 / "watch"=順番視聴（学習とは別）
   const isReview = role === "review", isWatch = role === "watch";
   const label = isWatch ? "順番に見る（古い順）" : isReview ? "復習（前回）" : "学習（新しい）";
-  const head = `<div class="blockhead"><span class="badge" style="background:${s.color}">${escapeHtml(s.name)}</span>` +
-    `<span class="mode ${isReview ? "" : "study"}">${label}</span></div>`;
+  const head = `<div class="blockhead"><i class="swatch" style="--c:${s.color}"></i>` +
+    `<span><span class="name">${escapeHtml(s.name)}</span> <span class="role">${label}</span></span></div>`;
   const kindWord = s.type === "channel" ? "チャンネル" : "再生リスト";
 
-  if (!s.url) return head + emptyState(`${escapeHtml(s.name)} のURLが未設定です`, `<button onclick="openSettings()">⚙️ 設定する</button>`);
+  if (!s.url) return head + emptyState(`${escapeHtml(s.name)} のURLが未設定です`, `<button onclick="openSettings()">設定を開く</button>`);
   const cache = loadCache()[id];
   if (!cache || !cache.videos || !cache.videos.length)
     return head + emptyState(`${escapeHtml(s.name)} の${kindWord}をまだ読み込んでいません`, `<button onclick="loadSource('${id}')">${kindWord}を読み込む</button>`);
@@ -399,7 +414,7 @@ function blockHTML(id, role) {
     if (vi <= 0) return head + emptyState(`${escapeHtml(s.name)} はまだ学習していないので、復習はまだありません`, "");
     idx = Math.min(vi - 1, videos.length - 1);
   } else {
-    if (vi >= videos.length) return head + emptyState(`最新まで${isWatch ? "見" : "学習し"}終わりました（全${videos.length}本）。新着が出ていたら取り込めます。`, `<button onclick="loadSource('${id}')">↻ 新着を取り込む</button>`);
+    if (vi >= videos.length) return head + emptyState(`最新まで${isWatch ? "見" : "学習し"}終わりました（全${videos.length}本）。新着が出ていたら取り込めます。`, `<button onclick="loadSource('${id}')">新しい動画を取り込む</button>`);
     idx = vi;
   }
   const v = videos[idx];
@@ -412,8 +427,9 @@ function blockHTML(id, role) {
   } else {
     html += `<div class="player">${iframeHTML("https://www.youtube.com/embed/" + v.id)}</div>`;
   }
-  if (!isReview) html += `<div class="jump"><span>${isWatch ? "見る動画" : "学習で見る動画"}：</span><input type="number" min="1" max="${videos.length}" value="${vi + 1}" id="jump_${id}"><span>本目から</span><button onclick="jumpTo('${id}')">この番号にする</button></div>`;
-  html += `<div class="refreshrow"><button class="refresh" onclick="loadSource('${id}')">↻ 新着を取り込む</button></div>`;
+  html += `<div class="tools">`;
+  if (!isReview) html += `<div class="jump"><span>${isWatch ? "見る動画" : "学習で見る動画"}</span><input type="number" min="1" max="${videos.length}" value="${vi + 1}" id="jump_${id}"><span>本目から</span><button onclick="jumpTo('${id}')">この番号にする</button></div>`;
+  html += `<button class="textbtn" onclick="loadSource('${id}')">新しい動画を取り込む</button></div>`;
   return html;
 }
 
@@ -447,18 +463,21 @@ function renderRotation() {
   if (!D.length) {
     document.getElementById("todayLines").innerHTML = `<div class="line">科目がありません</div>`;
     document.getElementById("nextDay").textContent = "";
-    document.getElementById("reviewBlock").innerHTML = emptyState("設定で科目を追加してください", `<button onclick="openSettings()">⚙️ 設定する</button>`);
+    document.getElementById("reviewBlock").innerHTML = emptyState("設定で科目を追加してください", `<button onclick="openSettings()">設定を開く</button>`);
     document.getElementById("studyBlock").innerHTML = "";
     return;
   }
   dayIndex = wrapDay(dayIndex);
   const day = D[dayIndex], next = D[wrapDay(dayIndex + 1)];
   const r = sourceById(day.review), s = sourceById(day.study);
-  document.getElementById("todayLines").innerHTML =
-    `<div class="line"><span class="tag" style="background:${r.color}">復習</span>${escapeHtml(r.name)}</div>` +
-    `<div class="line"><span class="tag" style="background:${s.color}">学習</span>${escapeHtml(s.name)}</div>`;
+  // 今日の行：学習(主役)→復習の順。本数は buildSyncState() と同じ数え方
+  const st = buildSyncState();
+  const item = (role, src, no) => `<span class="item"><span class="role">${role}</span><i class="swatch" style="--c:${src.color}"></i>` +
+    `<b>${escapeHtml(src.name)}</b>${no ? ` <span class="num">${no}本目</span>` : ""}</span>`;
+  document.getElementById("todayLines").innerHTML = `<span class="lead">今日</span>` +
+    item("学習", s, st.study.no) + item("復習", r, st.review.no);
   document.getElementById("nextDay").textContent =
-    `次の日：${escapeHtml(sourceById(next.review).name)} の復習／${escapeHtml(sourceById(next.study).name)} の学習`;
+    `次の日：${sourceById(next.study).name} を学習、${sourceById(next.review).name} を復習`;
   document.getElementById("reviewBlock").innerHTML = blockHTML(day.review, "review");
   document.getElementById("studyBlock").innerHTML = blockHTML(day.study, "study");
   pushSyncState();
@@ -466,9 +485,9 @@ function renderRotation() {
 function renderStats() {
   const log = loadJSON(KEY_LOG, []);
   const el = document.getElementById("stats");
-  if (!log.length) { el.textContent = "🔥 まだ記録なし — 今日の「完了」で記録が始まります"; return; }
+  if (!log.length) { el.textContent = "記録はまだありません（完了を押した日から数えます）"; return; }
   const last = log.slice().sort().pop().split("-");
-  el.textContent = `🔥 ${computeStreak(log)}日連続 ・ 直近7日で ${countLast7(log)}日 ・ 最後にやった日 ${Number(last[1])}/${Number(last[2])}`;
+  el.textContent = `${computeStreak(log)}日連続　直近7日で${countLast7(log)}日　最後に完了した日 ${Number(last[1])}/${Number(last[2])}`;
 }
 
 // ── 動画の取り込み ──
@@ -479,7 +498,7 @@ async function loadSource(id) {
   const head = blockEl.querySelector(".blockhead");
   blockEl.innerHTML = (head ? head.outerHTML : "") + emptyState("動画を読み込み中…（本数が多いと少し時間がかかります）", "");
   try { await fetchVideos(id); render(); }
-  catch (e) { blockEl.innerHTML = (head ? head.outerHTML : "") + emptyState("読み込めませんでした：" + e.message, `<button onclick="openSettings()">⚙️ 設定を見直す</button>`); }
+  catch (e) { blockEl.innerHTML = (head ? head.outerHTML : "") + emptyState("読み込めませんでした：" + e.message, `<button onclick="openSettings()">設定を開く</button>`); }
 }
 window.loadSource = loadSource;
 
@@ -510,9 +529,9 @@ function buildEditor(list) {
           <option value="playlist" ${s.type !== "channel" ? "selected" : ""}>再生リスト</option>
           <option value="channel" ${s.type === "channel" ? "selected" : ""}>チャンネル（古い順）</option>
         </select>
-        <button data-act="up" data-id="${s.id}" title="上へ">↑</button>
-        <button data-act="down" data-id="${s.id}" title="下へ">↓</button>
-        <button data-act="del" data-id="${s.id}" title="削除">削除</button>
+        <button data-act="up" data-id="${s.id}" aria-label="上へ">↑ 上へ</button>
+        <button data-act="down" data-id="${s.id}" aria-label="下へ">↓ 下へ</button>
+        <button data-act="del" data-id="${s.id}">削除</button>
       </div>
       <input class="surl" type="text" data-id="${s.id}" value="${escapeHtml(s.url || "")}" placeholder="YouTubeのURL（再生リスト or チャンネル）">
     </div>`).join("");
@@ -612,7 +631,7 @@ document.getElementById("backBtn").addEventListener("click", () => { dayIndex = 
 document.getElementById("modeSelect").addEventListener("change", e => {
   localStorage.setItem(KEY_MODE, e.target.value); render();
 });
-// 順番視聴：見終わったら次へ／前の動画へ（学習の記録🔥には含めない）
+// 順番視聴：見終わったら次へ／前の動画へ（学習の連続記録には含めない）
 function stepWatch(delta) {
   const id = currentMode(); if (id === "rotation") return;
   watchAutostart = autoplayOn();
@@ -735,7 +754,7 @@ async function renderSyncBox() {
     `<div>スマホのカメラでこのQRを読むと、学習メモが連携した状態で開きます。</div>` +
     `<div class="syncqr" id="syncQr"></div>` +
     `<div>手で入れる場合のコード：<span class="synccode">${prettyCode(code)}</span></div>` +
-    `<div class="bkrow" style="margin-top:8px;"><button id="syncCopyBtn">リンクをコピー</button><button id="syncSendBtn">今すぐ送る</button><button id="syncStopBtn" class="ghost">連携をやめる</button></div>` +
+    `<div class="bkrow" style="margin-top:8px;"><button id="syncCopyBtn">リンクをコピー</button><button id="syncSendBtn">今すぐ送る</button><button id="syncStopBtn" class="textbtn">連携をやめる</button></div>` +
     `<div class="note" id="syncStatus"></div>`;
   document.getElementById("syncCopyBtn").onclick = async () => {
     try { await navigator.clipboard.writeText(link); setSyncStatus("リンクをコピーしました"); } catch { setSyncStatus(link); }
