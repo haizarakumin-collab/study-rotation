@@ -29,6 +29,7 @@
     :root { --paper: #161614; --sheet: #1f1f1c; --ink: #ecebe6; --ink-2: #a29d93; --rule: #383631; --danger: #ef6b5e; }
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; } /* display:flex 等の指定より hidden を優先する */
   body {
     margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.65 var(--font);
     padding: env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom));
@@ -90,11 +91,10 @@
   .inrow button { flex: none; }
 
   /* メモ一覧：罫線で区切った行 */
-  .group h3 { font-size: 12px; font-weight: 500; color: var(--ink-2); margin: 16px 0 2px; }
+  .group + .group { border-top: 3px solid var(--rule); }
   .entry { display: flex; gap: 10px; align-items: baseline; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--rule); border-radius: 0; padding: 10px 0; font-weight: 400; font-size: 15px; }
   .entry > span:last-child { min-width: 0; overflow-wrap: anywhere; }
   kbd, .kbd { font: 500 13px/1.4 var(--mono); background: var(--sheet); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 1px 6px; white-space: nowrap; }
-  .entry .n { font-family: var(--mono); color: var(--ink-2); min-width: 1.6em; flex: none; }
   .empty { color: var(--ink-2); font-size: 14px; padding: 28px 0; }
 
   /* 見返す */
@@ -463,9 +463,8 @@ function currentEntries() {
   const cur = getCurrent();
   return loadEntries().filter(e => e.subjectId === cur.subjectId && e.videoNo === cur.no).sort((a, b) => a.createdAt - b.createdAt);
 }
-function entryHTML(e, i) {
+function entryHTML(e) {
   if (e.kind === "shortcut") return `<button class="entry" data-edit="${e.id}">${e.keys ? `<kbd>${escapeHtml(e.keys)}</kbd>` : ""}<span>${escapeHtml(e.text)}</span></button>`;
-  if (e.kind === "step") return `<button class="entry" data-edit="${e.id}"><span class="n">${i + 1}.</span><span>${escapeHtml(e.text)}</span></button>`;
   return `<button class="entry" data-edit="${e.id}"><span>${escapeHtml(e.text)}</span></button>`;
 }
 function renderEntries() {
@@ -474,7 +473,7 @@ function renderEntries() {
   box.innerHTML = ["shortcut", "step", "value"].map(k => {
     const items = list.filter(e => e.kind === k);
     if (!items.length) return "";
-    return `<div class="group"><h3>${KIND[k].label}　<span class="num">${items.length}</span></h3>${items.map(entryHTML).join("")}</div>`;
+    return `<div class="group">${items.map(entryHTML).join("")}</div>`;
   }).join("");
 }
 function addFromComposer() {

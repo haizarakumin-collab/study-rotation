@@ -20,6 +20,7 @@
     :root { --paper: #161614; --sheet: #1f1f1c; --ink: #ecebe6; --ink-2: #a29d93; --rule: #383631; --danger: #ef6b5e; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; } /* display:flex 等の指定より hidden を優先する */
   body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.7 var(--font); }
   .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 24px 72px; }
   b, strong { font-weight: 700; }
